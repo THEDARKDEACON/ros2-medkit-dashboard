@@ -3,7 +3,7 @@
  * **Validates: Requirements 3.2, 3.3, 3.4**
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as fc from 'fast-check';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -24,6 +24,9 @@ const createWrapper = () => {
     defaultOptions: {
       queries: {
         retry: false, // Disable retries for tests
+        refetchOnWindowFocus: false, // Disable refetch on window focus
+        refetchOnReconnect: false, // Disable refetch on reconnect
+        refetchOnMount: false, // Disable refetch on mount
       },
     },
   });
@@ -339,7 +342,7 @@ describe('Property 7: Topic Selection API Call', () => {
           });
 
           const { result } = renderHook(
-            () => useTopicData(componentId, topicName, { enabled: true, refetchInterval: false }),
+            () => useTopicData(componentId, topicName, { enabled: true, refetchInterval: 0 }),
             {
               wrapper: createWrapper(),
             }
@@ -414,7 +417,7 @@ describe('Property 7: Topic Selection API Call', () => {
             .mockResolvedValueOnce({ data: data2 });
 
           const { result, rerender } = renderHook(
-            ({ topicName }) => useTopicData(componentId, topicName),
+            ({ topicName }) => useTopicData(componentId, topicName, { refetchInterval: 0 }),
             {
               wrapper: createWrapper(),
               initialProps: { topicName: topicName1 },

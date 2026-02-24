@@ -1,8 +1,9 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { ChevronDown, ChevronRight, Box, Activity, AlertCircle } from 'lucide-react';
 import { useAreas, useComponents } from '../../features/api/hooks';
 import { LoadingState } from '../common/LoadingState';
 import { EmptyState, EmptyErrorState } from '../common/EmptyState';
+import { VirtualizedList } from '../common/VirtualizedList';
 import { ComponentSearch } from './ComponentSearch';
 import { filterComponents, highlightMatches } from '../../utils/filterComponents';
 import type { Component } from '../../types/api';
@@ -45,7 +46,7 @@ export function ComponentTree({
   }, [components, searchTerm]);
 
   // Toggle area expansion
-  const toggleArea = (areaId: string) => {
+  const toggleArea = useCallback((areaId: string) => {
     setExpandedAreas((prev) => {
       const next = new Set(prev);
       if (next.has(areaId)) {
@@ -55,12 +56,12 @@ export function ComponentTree({
       }
       return next;
     });
-  };
+  }, []);
 
   // Handle component click
-  const handleComponentClick = (component: Component) => {
+  const handleComponentClick = useCallback((component: Component) => {
     onComponentSelect?.(component);
-  };
+  }, [onComponentSelect]);
 
   // Loading state
   if (areasLoading || componentsLoading) {
@@ -183,7 +184,7 @@ export function ComponentTree({
             {/* Area components */}
             {isExpanded && (
               <div
-                className="ml-6 mt-1 space-y-1 border-l-2 border-muted pl-2"
+                className="ml-6 mt-1 border-l-2 border-muted pl-2"
                 role="group"
                 aria-label={`Components in ${area.name}`}
               >
@@ -191,65 +192,133 @@ export function ComponentTree({
                   <div className="px-3 py-2 text-sm text-muted-foreground">
                     No components in this area
                   </div>
-                ) : (
-                  areaComponents.map((component) => {
-                    const isSelected = component.id === selectedComponentId;
-
-                    return (
-                      <button
-                        key={component.id}
-                        onClick={() => handleComponentClick(component)}
-                        className={`w-full flex items-center gap-2 px-3 py-2 text-left rounded-md transition-colors ${
-                          isSelected
-                            ? 'bg-primary/10 text-primary'
-                            : 'hover:bg-muted/50 text-foreground'
-                        }`}
-                        role="treeitem"
-                        aria-selected={isSelected}
-                        aria-label={`${component.name} component, status: ${component.status}`}
-                      >
-                        {/* Component icon with status */}
-                        <div className="relative flex-shrink-0">
-                          <Activity className="h-4 w-4" aria-hidden="true" />
-                          {showStatus && component.status === 'error' && (
-                            <AlertCircle
-                              className="h-2 w-2 text-red-500 absolute -top-0.5 -right-0.5"
-                              aria-hidden="true"
-                            />
-                          )}
-                        </div>
-
-                        {/* Component name */}
-                        <span className="text-sm flex-1 truncate">
-                          {renderHighlightedText(component.name)}
-                        </span>
-
-                        {/* Status indicator */}
-                        {showStatus && (
-                          <div className="flex-shrink-0">
-                            {component.status === 'active' && (
-                              <div
-                                className="h-2 w-2 rounded-full bg-green-500"
-                                aria-label="Active"
-                              />
-                            )}
-                            {component.status === 'inactive' && (
-                              <div
-                                className="h-2 w-2 rounded-full bg-gray-400"
-                                aria-label="Inactive"
-                              />
-                            )}
-                            {component.status === 'error' && (
-                              <div
-                                className="h-2 w-2 rounded-full bg-red-500"
-                                aria-label="Error"
+                ) : areaComponents.length > 20 ? (
+                  // Use virtualization for large lists (>20 items)
+                  <VirtualizedList
+                    items={areaComponents}
+                    itemHeight={40}
+                    height={Math.min(400, areaComponents.length * 40)}
+                    renderItem={(component, index, style) => {
+                      const isSelected = component.id === selectedComponentId;
+                      return (
+                        <button
+                          key={component.id}
+                          onClick={() => handleComponentClick(component)}
+                          style={style}
+                          className={`w-full flex items-center gap-2 px-3 py-2 text-left rounded-md transition-colors ${
+                            isSelected
+                              ? 'bg-primary/10 text-primary'
+                              : 'hover:bg-muted/50 text-foreground'
+                          }`}
+                          role="treeitem"
+                          aria-selected={isSelected}
+                          aria-label={`${component.name} component, status: ${component.status}`}
+                        >
+                          {/* Component icon with status */}
+                          <div className="relative flex-shrink-0">
+                            <Activity className="h-4 w-4" aria-hidden="true" />
+                            {showStatus && component.status === 'error' && (
+                              <AlertCircle
+                                className="h-2 w-2 text-red-500 absolute -top-0.5 -right-0.5"
+                                aria-hidden="true"
                               />
                             )}
                           </div>
-                        )}
-                      </button>
-                    );
-                  })
+
+                          {/* Component name */}
+                          <span className="text-sm flex-1 truncate">
+                            {renderHighlightedText(component.name)}
+                          </span>
+
+                          {/* Status indicator */}
+                          {showStatus && (
+                            <div className="flex-shrink-0">
+                              {component.status === 'active' && (
+                                <div
+                                  className="h-2 w-2 rounded-full bg-green-500"
+                                  aria-label="Active"
+                                />
+                              )}
+                              {component.status === 'inactive' && (
+                                <div
+                                  className="h-2 w-2 rounded-full bg-gray-400"
+                                  aria-label="Inactive"
+                                />
+                              )}
+                              {component.status === 'error' && (
+                                <div
+                                  className="h-2 w-2 rounded-full bg-red-500"
+                                  aria-label="Error"
+                                />
+                              )}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    }}
+                  />
+                ) : (
+                  // Regular rendering for small lists
+                  <div className="space-y-1">
+                    {areaComponents.map((component) => {
+                      const isSelected = component.id === selectedComponentId;
+
+                      return (
+                        <button
+                          key={component.id}
+                          onClick={() => handleComponentClick(component)}
+                          className={`w-full flex items-center gap-2 px-3 py-2 text-left rounded-md transition-colors ${
+                            isSelected
+                              ? 'bg-primary/10 text-primary'
+                              : 'hover:bg-muted/50 text-foreground'
+                          }`}
+                          role="treeitem"
+                          aria-selected={isSelected}
+                          aria-label={`${component.name} component, status: ${component.status}`}
+                        >
+                          {/* Component icon with status */}
+                          <div className="relative flex-shrink-0">
+                            <Activity className="h-4 w-4" aria-hidden="true" />
+                            {showStatus && component.status === 'error' && (
+                              <AlertCircle
+                                className="h-2 w-2 text-red-500 absolute -top-0.5 -right-0.5"
+                                aria-hidden="true"
+                              />
+                            )}
+                          </div>
+
+                          {/* Component name */}
+                          <span className="text-sm flex-1 truncate">
+                            {renderHighlightedText(component.name)}
+                          </span>
+
+                          {/* Status indicator */}
+                          {showStatus && (
+                            <div className="flex-shrink-0">
+                              {component.status === 'active' && (
+                                <div
+                                  className="h-2 w-2 rounded-full bg-green-500"
+                                  aria-label="Active"
+                                />
+                              )}
+                              {component.status === 'inactive' && (
+                                <div
+                                  className="h-2 w-2 rounded-full bg-gray-400"
+                                  aria-label="Inactive"
+                                />
+                              )}
+                              {component.status === 'error' && (
+                                <div
+                                  className="h-2 w-2 rounded-full bg-red-500"
+                                  aria-label="Error"
+                                />
+                              )}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             )}

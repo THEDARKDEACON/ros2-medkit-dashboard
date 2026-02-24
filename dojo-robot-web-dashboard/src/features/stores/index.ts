@@ -13,3 +13,5 @@ export type {
 
 export { useNavigationStore } from './navigationStore';
 export type { Breadcrumb } from './navigationStore';
+
+export { useLayoutStore } from './layoutStore';

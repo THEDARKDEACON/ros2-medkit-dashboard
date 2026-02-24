@@ -7,6 +7,7 @@ import axios, { AxiosError } from 'axios';
 import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import { ApiError, NetworkError } from './errors';
 import { generateRequestId, formatRequestLog, formatErrorLog } from './utils';
+import { setupSessionLogging } from './sessionLogger';
 
 /**
  * Create and configure Axios instance
@@ -94,6 +95,9 @@ const createApiClient = (): AxiosInstance => {
     }
   );
 
+  // Setup session logging
+  setupSessionLogging(client);
+
   return client;
 };
 
@@ -101,6 +105,15 @@ const createApiClient = (): AxiosInstance => {
  * Configured Axios instance for API requests
  */
 export const apiClient = createApiClient();
+
+/**
+ * Update the API client base URL
+ * Used when switching between robot instances
+ */
+export const updateApiBaseUrl = (baseUrl: string): void => {
+  apiClient.defaults.baseURL = baseUrl;
+  console.log(`[API] Base URL updated to: ${baseUrl}`);
+};
 
 /**
  * Export axios instance type for use in other modules

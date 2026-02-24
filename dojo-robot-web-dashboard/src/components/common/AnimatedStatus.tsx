@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { CheckCircle2, XCircle, AlertCircle, Info, Loader2 } from 'lucide-react';
 
 export type StatusType = 'success' | 'error' | 'warning' | 'info' | 'loading';
@@ -76,7 +77,7 @@ const sizeClasses = {
   },
 };
 
-export function AnimatedStatus({
+export const AnimatedStatus = memo(function AnimatedStatus({
   status,
   message,
   size = 'md',
@@ -109,7 +110,7 @@ export function AnimatedStatus({
       )}
     </div>
   );
-}
+});
 
 /**
  * Pulse indicator for real-time status
@@ -135,7 +136,7 @@ const pulseSize = {
   lg: 'h-4 w-4',
 };
 
-export function StatusPulse({ active, label, size = 'md' }: StatusPulseProps) {
+export const StatusPulse = memo(function StatusPulse({ active, label, size = 'md' }: StatusPulseProps) {
   return (
     <div className="inline-flex items-center gap-2" role="status" aria-label={label || (active ? 'Connected' : 'Disconnected')}>
       <div className="relative">
@@ -156,4 +157,4 @@ export function StatusPulse({ active, label, size = 'md' }: StatusPulseProps) {
       )}
     </div>
   );
-}
+});

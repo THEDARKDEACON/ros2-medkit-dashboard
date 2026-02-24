@@ -1,5 +1,7 @@
 import { useConnectionStore } from '@/features/stores/connectionStore';
-import { Wifi, WifiOff, Radio, RadioTower } from 'lucide-react';
+import { getFaultSSEManager } from '@/features/realtime/sseManager';
+import { getWebSocketManager } from '@/features/realtime/websocketManager';
+import { Wifi, WifiOff, Radio, RadioTower, RefreshCw } from 'lucide-react';
 
 export function StatusBar() {
   const apiStatus = useConnectionStore((state) => state.apiStatus);
@@ -10,6 +12,26 @@ export function StatusBar() {
   const reconnectAttempts = useConnectionStore(
     (state) => state.reconnectAttempts,
   );
+
+  const handleManualReconnect = () => {
+    // Reconnect SSE if disconnected or failed
+    if (sseStatus === 'disconnected' || sseStatus === 'failed') {
+      const sseManager = getFaultSSEManager();
+      sseManager.connect();
+    }
+
+    // Reconnect WebSocket if disconnected or failed
+    if (wsStatus === 'disconnected' || wsStatus === 'failed') {
+      const wsManager = getWebSocketManager();
+      wsManager.connect();
+    }
+  };
+
+  const showReconnectButton =
+    sseStatus === 'disconnected' ||
+    sseStatus === 'failed' ||
+    wsStatus === 'disconnected' ||
+    wsStatus === 'failed';
 
   const formatLastConnected = () => {
     if (!lastConnected) return 'Never';
@@ -65,9 +87,20 @@ export function StatusBar() {
           <RadioTower className="h-4 w-4" />,
         )}
         {pollingEnabled && (
-          <span className="text-xs text-yellow-600 dark:text-yellow-400">
-            Polling Mode
+          <span className="flex items-center gap-1 text-xs text-yellow-600 dark:text-yellow-400">
+            <Radio className="h-3 w-3" />
+            Polling Fallback
           </span>
+        )}
+        {showReconnectButton && (
+          <button
+            onClick={handleManualReconnect}
+            className="flex h-7 items-center gap-1 rounded-md px-2 text-xs hover:bg-accent hover:text-accent-foreground"
+            title="Manually reconnect to services"
+          >
+            <RefreshCw className="h-3 w-3" />
+            Reconnect
+          </button>
         )}
       </div>
 

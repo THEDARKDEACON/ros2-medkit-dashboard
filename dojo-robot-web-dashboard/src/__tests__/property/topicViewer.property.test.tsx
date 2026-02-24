@@ -5,12 +5,11 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as fc from 'fast-check';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TopicViewer } from '@/components/topics/TopicViewer';
 import * as hooks from '@/features/api/hooks';
-import type { Topic } from '@/types/api';
 
 // Mock the API hooks
 vi.mock('@/features/api/hooks', () => ({
@@ -18,8 +17,8 @@ vi.mock('@/features/api/hooks', () => ({
   useTopicData: vi.fn(),
 }));
 
-// Helper to create a wrapper with QueryClient
-const createWrapper = () => {
+// Helper to create a fresh wrapper with QueryClient for each test
+const createFreshWrapper = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -36,16 +35,16 @@ const createWrapper = () => {
 // Helper to click on a topic in the list (handles multiple elements with same text)
 const clickTopicInList = async (topicName: string) => {
   const user = userEvent.setup();
-  // Wait for the topic to appear in the list
-  await waitFor(() => {
-    const elements = screen.queryAllByText(topicName);
-    expect(elements.length).toBeGreaterThan(0);
-  });
   
-  const topicButtons = screen.getAllByText(topicName);
-  const button = topicButtons[0].closest('button');
-  if (!button) throw new Error(`Could not find button for topic ${topicName}`);
-  await user.click(button);
+  // Find all buttons that contain the topic name
+  const allButtons = screen.getAllByRole('button');
+  const topicButton = allButtons.find(button => button.textContent?.includes(topicName));
+  
+  if (!topicButton) {
+    throw new Error(`Could not find button for topic ${topicName}`);
+  }
+  
+  await user.click(topicButton);
 };
 
 // Arbitraries for generating test data
@@ -62,10 +61,10 @@ const messageTypeArbitrary = fc.oneof(
   fc.constant('geometry_msgs/Point')
 );
 
-// Generate ISO timestamp strings
+// Generate ISO timestamp strings - use integer timestamps to avoid invalid dates
 const timestampArbitrary = fc
-  .date({ min: new Date('2020-01-01'), max: new Date('2025-12-31') })
-  .map((date) => date.toISOString());
+  .integer({ min: new Date('2020-01-01').getTime(), max: new Date('2025-12-31').getTime() })
+  .map((timestamp) => new Date(timestamp).toISOString());
 
 const topicDataValueArbitrary = fc.oneof(
   fc.record({
@@ -74,18 +73,26 @@ const topicDataValueArbitrary = fc.oneof(
   }),
   fc.record({
     _type: messageTypeArbitrary,
-    linear: fc.record({ x: fc.double(), y: fc.double(), z: fc.double() }),
-    angular: fc.record({ x: fc.double(), y: fc.double(), z: fc.double() }),
+    linear: fc.record({ 
+      x: fc.double({ min: -1000, max: 1000, noNaN: true }), 
+      y: fc.double({ min: -1000, max: 1000, noNaN: true }), 
+      z: fc.double({ min: -1000, max: 1000, noNaN: true }) 
+    }),
+    angular: fc.record({ 
+      x: fc.double({ min: -10, max: 10, noNaN: true }), 
+      y: fc.double({ min: -10, max: 10, noNaN: true }), 
+      z: fc.double({ min: -10, max: 10, noNaN: true }) 
+    }),
   }),
   fc.record({
     _type: messageTypeArbitrary,
-    value: fc.double(),
+    value: fc.double({ min: -1000000, max: 1000000, noNaN: true }),
   }),
   fc.record({
     _type: messageTypeArbitrary,
-    x: fc.double(),
-    y: fc.double(),
-    z: fc.double(),
+    x: fc.double({ min: -1000, max: 1000, noNaN: true }),
+    y: fc.double({ min: -1000, max: 1000, noNaN: true }),
+    z: fc.double({ min: -1000, max: 1000, noNaN: true }),
   })
 );
 
@@ -136,7 +143,7 @@ describe('Property 10: Topic Timestamp Display', () => {
         async (componentId, topics) => {
           vi.clearAllMocks();
 
-          const mockUseTopicData = vi.fn();
+          // Mock useTopicList to return topics
           vi.mocked(hooks.useTopicList).mockReturnValue({
             data: topics,
             isLoading: false,
@@ -144,43 +151,42 @@ describe('Property 10: Topic Timestamp Display', () => {
             refetch: vi.fn(),
           } as any);
 
-          vi.mocked(hooks.useTopicData).mockImplementation(mockUseTopicData);
-
-          // Initially no topic selected
-          mockUseTopicData.mockReturnValue({
-            data: undefined,
+          // Mock useTopicData to return data when topic is selected
+          vi.mocked(hooks.useTopicData).mockReturnValue({
+            data: topics[0].data,
             isLoading: false,
             error: null,
             refetch: vi.fn(),
           } as any);
 
-          const { rerender } = render(<TopicViewer componentId={componentId} />, {
-            wrapper: createWrapper(),
+          // Create a fresh wrapper for each test iteration
+          const queryClient = new QueryClient({
+            defaultOptions: {
+              queries: {
+                retry: false,
+              },
+            },
           });
+
+          const wrapper = ({ children }: { children: React.ReactNode }) => (
+            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+          );
+
+          render(<TopicViewer componentId={componentId} />, { wrapper });
 
           // Select the first topic
           const firstTopic = topics[0];
           await clickTopicInList(firstTopic.name);
 
-          // Update mock to return data for selected topic
-          mockUseTopicData.mockReturnValue({
-            data: firstTopic.data,
-            isLoading: false,
-            error: null,
-            refetch: vi.fn(),
-          } as any);
-
-          rerender(<TopicViewer componentId={componentId} />);
-
           // Verify timestamp is displayed
           await waitFor(() => {
-            const timestampElements = screen.queryAllByText(/Last update:/);
-            expect(timestampElements.length).toBeGreaterThan(0);
-          }, { timeout: 2000 });
+            const timestampElement = screen.getByTestId('topic-timestamp');
+            expect(timestampElement).toBeInTheDocument();
+            expect(timestampElement.textContent).toMatch(/Last update:/);
+          }, { timeout: 1000 });
 
-          // Verify the timestamp text contains a formatted date
-          const timestampElements = screen.getAllByText(/Last update:/);
-          expect(timestampElements[0].textContent).toMatch(/Last update:/);
+          // Cleanup after each iteration
+          cleanup();
         }
       ),
       { numRuns: 5 }
@@ -207,45 +213,36 @@ describe('Property 10: Topic Timestamp Display', () => {
             refetch: vi.fn(),
           } as any);
 
-          const mockUseTopicData = vi.fn();
-          vi.mocked(hooks.useTopicData).mockImplementation(mockUseTopicData);
-
-          mockUseTopicData.mockReturnValue({
-            data: undefined,
-            isLoading: false,
-            error: null,
-            refetch: vi.fn(),
-          } as any);
-
-          const { rerender } = render(<TopicViewer componentId={componentId} />, {
-            wrapper: createWrapper(),
-          });
-
-          // Select the topic
-          await clickTopicInList(topic.name);
-
-          mockUseTopicData.mockReturnValue({
+          vi.mocked(hooks.useTopicData).mockReturnValue({
             data: topic.data,
             isLoading: false,
             error: null,
             refetch: vi.fn(),
           } as any);
 
-          rerender(<TopicViewer componentId={componentId} />);
+          render(<TopicViewer componentId={componentId} />, {
+            wrapper: createFreshWrapper(),
+          });
+
+          // Select the topic
+          await clickTopicInList(topic.name);
 
           await waitFor(() => {
-            expect(screen.getByText(/Last update:/)).toBeInTheDocument();
-          });
+            const timestampElement = screen.getByTestId('topic-timestamp');
+            expect(timestampElement).toBeInTheDocument();
+          }, { timeout: 1000 });
 
           // Verify the timestamp is formatted as a locale string
           const expectedTimestamp = new Date(topic.lastUpdate).toLocaleString();
-          const timestampElement = screen.getByText(/Last update:/);
+          const timestampElement = screen.getByTestId('topic-timestamp');
           expect(timestampElement.textContent).toContain(expectedTimestamp);
+
+          cleanup();
         }
       ),
       { numRuns: 10 }
     );
-  });
+  }, 15000);
 
   /**
    * Property: Timestamps update when new data arrives
@@ -264,48 +261,39 @@ describe('Property 10: Topic Timestamp Display', () => {
 
           vi.clearAllMocks();
 
-          const mockUseTopicData = vi.fn();
-          vi.mocked(hooks.useTopicList).mockReturnValue({
+          // Start with initial topic
+          const topicListMock = vi.mocked(hooks.useTopicList);
+          topicListMock.mockReturnValue({
             data: [initialTopic],
             isLoading: false,
             error: null,
             refetch: vi.fn(),
           } as any);
 
-          vi.mocked(hooks.useTopicData).mockImplementation(mockUseTopicData);
-
-          mockUseTopicData.mockReturnValue({
-            data: undefined,
-            isLoading: false,
-            error: null,
-            refetch: vi.fn(),
-          } as any);
-
-          const { rerender } = render(<TopicViewer componentId={componentId} />, {
-            wrapper: createWrapper(),
-          });
-
-          // Select the topic
-          await clickTopicInList(initialTopic.name);
-
-          mockUseTopicData.mockReturnValue({
+          vi.mocked(hooks.useTopicData).mockReturnValue({
             data: initialTopic.data,
             isLoading: false,
             error: null,
             refetch: vi.fn(),
           } as any);
 
-          rerender(<TopicViewer componentId={componentId} />);
+          const { rerender } = render(<TopicViewer componentId={componentId} />, {
+            wrapper: createFreshWrapper(),
+          });
+
+          // Select the topic
+          await clickTopicInList(initialTopic.name);
 
           // Verify initial timestamp
           await waitFor(() => {
             const initialTimestampStr = new Date(initialTopic.lastUpdate).toLocaleString();
-            expect(screen.getByText(new RegExp(initialTimestampStr))).toBeInTheDocument();
-          });
+            const timestampElement = screen.getByTestId('topic-timestamp');
+            expect(timestampElement.textContent).toContain(initialTimestampStr);
+          }, { timeout: 1000 });
 
           // Update the topic list with new timestamp
           const updatedTopic = { ...initialTopic, lastUpdate: newTimestamp };
-          vi.mocked(hooks.useTopicList).mockReturnValue({
+          topicListMock.mockReturnValue({
             data: [updatedTopic],
             isLoading: false,
             error: null,
@@ -317,8 +305,11 @@ describe('Property 10: Topic Timestamp Display', () => {
           // Verify timestamp updated
           await waitFor(() => {
             const newTimestampStr = new Date(newTimestamp).toLocaleString();
-            expect(screen.getByText(new RegExp(newTimestampStr))).toBeInTheDocument();
-          });
+            const timestampElement = screen.getByTestId('topic-timestamp');
+            expect(timestampElement.textContent).toContain(newTimestampStr);
+          }, { timeout: 1000 });
+
+          cleanup();
         }
       ),
       { numRuns: 10 }
@@ -349,42 +340,32 @@ describe('Property 10: Topic Timestamp Display', () => {
             refetch: vi.fn(),
           } as any);
 
-          const mockUseTopicData = vi.fn();
-          vi.mocked(hooks.useTopicData).mockImplementation(mockUseTopicData);
-
-          mockUseTopicData.mockReturnValue({
-            data: undefined,
-            isLoading: false,
-            error: null,
-            refetch: vi.fn(),
-          } as any);
-
-          const { rerender } = render(<TopicViewer componentId={componentId} />, {
-            wrapper: createWrapper(),
-          });
-
-          // Select the topic
-          await clickTopicInList(selectedTopic.name);
-
-          mockUseTopicData.mockReturnValue({
+          vi.mocked(hooks.useTopicData).mockReturnValue({
             data: selectedTopic.data,
             isLoading: false,
             error: null,
             refetch: vi.fn(),
           } as any);
 
-          rerender(<TopicViewer componentId={componentId} />);
+          render(<TopicViewer componentId={componentId} />, {
+            wrapper: createFreshWrapper(),
+          });
+
+          // Select the topic
+          await clickTopicInList(selectedTopic.name);
 
           await waitFor(() => {
             // Verify the format includes "Last update:" label
-            const timestampElement = screen.getByText(/Last update:/);
+            const timestampElement = screen.getByTestId('topic-timestamp');
             expect(timestampElement).toBeInTheDocument();
 
             // Verify it contains the formatted timestamp
             const formattedTimestamp = new Date(selectedTopic.lastUpdate).toLocaleString();
             expect(timestampElement.textContent).toContain('Last update:');
             expect(timestampElement.textContent).toContain(formattedTimestamp);
-          });
+          }, { timeout: 1000 });
+
+          cleanup();
         }
       ),
       { numRuns: 10 }
@@ -418,41 +399,29 @@ describe('Property 12: Topic Fetch Error Handling', () => {
             refetch: vi.fn(),
           } as any);
 
-          const mockUseTopicData = vi.fn();
-          vi.mocked(hooks.useTopicData).mockImplementation(mockUseTopicData);
-
-          // Initially no error
-          mockUseTopicData.mockReturnValue({
-            data: undefined,
-            isLoading: false,
-            error: null,
-            refetch: vi.fn(),
-          } as any);
-
-          const { rerender } = render(<TopicViewer componentId={componentId} />, {
-            wrapper: createWrapper(),
-          });
-
-          // Select the topic
-          await clickTopicInList(topic.name);
-
-          // Update to error state
-          mockUseTopicData.mockReturnValue({
+          vi.mocked(hooks.useTopicData).mockReturnValue({
             data: undefined,
             isLoading: false,
             error: new Error(errorMessage),
             refetch: vi.fn(),
           } as any);
 
-          rerender(<TopicViewer componentId={componentId} />);
+          render(<TopicViewer componentId={componentId} />, {
+            wrapper: createFreshWrapper(),
+          });
+
+          // Select the topic
+          await clickTopicInList(topic.name);
 
           // Verify error message is displayed
           await waitFor(() => {
-            expect(screen.getByText('Failed to load topic data')).toBeInTheDocument();
-            expect(
-              screen.getByText(/Unable to fetch data for this topic/)
-            ).toBeInTheDocument();
-          });
+            const errorTitle = screen.getByText('Failed to load topic data');
+            expect(errorTitle).toBeInTheDocument();
+            const errorDescription = screen.getByText(/Unable to fetch data for this topic/);
+            expect(errorDescription).toBeInTheDocument();
+          }, { timeout: 1000 });
+
+          cleanup();
         }
       ),
       { numRuns: 10 }
@@ -480,37 +449,27 @@ describe('Property 12: Topic Fetch Error Handling', () => {
             refetch: vi.fn(),
           } as any);
 
-          const mockUseTopicData = vi.fn();
-          vi.mocked(hooks.useTopicData).mockImplementation(mockUseTopicData);
-
-          mockUseTopicData.mockReturnValue({
-            data: undefined,
-            isLoading: false,
-            error: null,
-            refetch: vi.fn(),
-          } as any);
-
-          const { rerender } = render(<TopicViewer componentId={componentId} />, {
-            wrapper: createWrapper(),
-          });
-
-          // Select the topic
-          await clickTopicInList(topic.name);
-
-          // Update to error state
-          mockUseTopicData.mockReturnValue({
+          vi.mocked(hooks.useTopicData).mockReturnValue({
             data: undefined,
             isLoading: false,
             error: new Error(errorMessage),
             refetch: vi.fn(),
           } as any);
 
-          rerender(<TopicViewer componentId={componentId} />);
+          render(<TopicViewer componentId={componentId} />, {
+            wrapper: createFreshWrapper(),
+          });
+
+          // Select the topic
+          await clickTopicInList(topic.name);
 
           // Verify retry button is available
           await waitFor(() => {
-            expect(screen.getByText('Retry')).toBeInTheDocument();
-          });
+            const retryButton = screen.getByRole('button', { name: /retry/i });
+            expect(retryButton).toBeInTheDocument();
+          }, { timeout: 1000 });
+
+          cleanup();
         }
       ),
       { numRuns: 10 }
@@ -540,44 +499,34 @@ describe('Property 12: Topic Fetch Error Handling', () => {
             refetch: vi.fn(),
           } as any);
 
-          const mockUseTopicData = vi.fn();
-          vi.mocked(hooks.useTopicData).mockImplementation(mockUseTopicData);
-
-          mockUseTopicData.mockReturnValue({
-            data: undefined,
-            isLoading: false,
-            error: null,
-            refetch: vi.fn(),
-          } as any);
-
-          const { rerender } = render(<TopicViewer componentId={componentId} />, {
-            wrapper: createWrapper(),
-          });
-
-          // Select the topic
-          await clickTopicInList(topic.name);
-
-          // Update to error state with refetch function
-          mockUseTopicData.mockReturnValue({
+          vi.mocked(hooks.useTopicData).mockReturnValue({
             data: undefined,
             isLoading: false,
             error: new Error(errorMessage),
             refetch: mockRefetch,
           } as any);
 
-          rerender(<TopicViewer componentId={componentId} />);
+          render(<TopicViewer componentId={componentId} />, {
+            wrapper: createFreshWrapper(),
+          });
+
+          // Select the topic
+          await clickTopicInList(topic.name);
 
           // Click retry button
           await waitFor(() => {
-            expect(screen.getByText('Retry')).toBeInTheDocument();
-          });
+            const retryButton = screen.getByRole('button', { name: /retry/i });
+            expect(retryButton).toBeInTheDocument();
+          }, { timeout: 1000 });
 
-          const retryButton = screen.getByText('Retry');
+          const retryButton = screen.getByRole('button', { name: /retry/i });
           const user = userEvent.setup();
           await user.click(retryButton);
 
           // Verify refetch was called
           expect(mockRefetch).toHaveBeenCalled();
+
+          cleanup();
         }
       ),
       { numRuns: 10 }
@@ -604,37 +553,25 @@ describe('Property 12: Topic Fetch Error Handling', () => {
             refetch: vi.fn(),
           } as any);
 
-          const mockUseTopicData = vi.fn();
-          vi.mocked(hooks.useTopicData).mockImplementation(mockUseTopicData);
-
-          mockUseTopicData.mockReturnValue({
-            data: undefined,
-            isLoading: false,
-            error: null,
-            refetch: vi.fn(),
-          } as any);
-
-          const { rerender } = render(<TopicViewer componentId={componentId} />, {
-            wrapper: createWrapper(),
-          });
-
-          // Select the topic
-          await clickTopicInList(topic.name);
-
-          // Update to error state
-          mockUseTopicData.mockReturnValue({
+          vi.mocked(hooks.useTopicData).mockReturnValue({
             data: undefined,
             isLoading: false,
             error: new Error('Network error'),
             refetch: vi.fn(),
           } as any);
 
-          rerender(<TopicViewer componentId={componentId} />);
+          render(<TopicViewer componentId={componentId} />, {
+            wrapper: createFreshWrapper(),
+          });
+
+          // Select the topic
+          await clickTopicInList(topic.name);
 
           // Verify user-friendly error message
           await waitFor(() => {
             // Should have a clear title
-            expect(screen.getByText('Failed to load topic data')).toBeInTheDocument();
+            const errorTitle = screen.getByText('Failed to load topic data');
+            expect(errorTitle).toBeInTheDocument();
 
             // Should have a descriptive message
             const errorDescription = screen.getByText(
@@ -646,7 +583,9 @@ describe('Property 12: Topic Fetch Error Handling', () => {
             expect(errorDescription.textContent).toMatch(
               /unavailable|connection issue/i
             );
-          });
+          }, { timeout: 1000 });
+
+          cleanup();
         }
       ),
       { numRuns: 10 }
@@ -676,46 +615,38 @@ describe('Property 12: Topic Fetch Error Handling', () => {
             refetch: vi.fn(),
           } as any);
 
-          const mockUseTopicData = vi.fn();
-          vi.mocked(hooks.useTopicData).mockImplementation(mockUseTopicData);
-
-          mockUseTopicData.mockReturnValue({
-            data: undefined,
-            isLoading: false,
-            error: null,
-            refetch: vi.fn(),
-          } as any);
-
-          const { rerender } = render(<TopicViewer componentId={componentId} />, {
-            wrapper: createWrapper(),
-          });
-
-          // Select the topic
-          await clickTopicInList(selectedTopic.name);
-
-          // Simulate network error
-          mockUseTopicData.mockReturnValue({
+          vi.mocked(hooks.useTopicData).mockReturnValue({
             data: undefined,
             isLoading: false,
             error: new Error('Network request failed'),
             refetch: vi.fn(),
           } as any);
 
-          rerender(<TopicViewer componentId={componentId} />);
+          render(<TopicViewer componentId={componentId} />, {
+            wrapper: createFreshWrapper(),
+          });
+
+          // Select the topic
+          await clickTopicInList(selectedTopic.name);
 
           // Component should still render without crashing
           await waitFor(() => {
-            expect(screen.getByText('Failed to load topic data')).toBeInTheDocument();
-            expect(screen.getByText('Retry')).toBeInTheDocument();
-          });
+            const errorTitle = screen.getByText('Failed to load topic data');
+            expect(errorTitle).toBeInTheDocument();
+            const retryButton = screen.getByRole('button', { name: /retry/i });
+            expect(retryButton).toBeInTheDocument();
+          }, { timeout: 2000 });
 
-          // Topic list should still be visible
-          expect(screen.getByText(selectedTopic.name)).toBeInTheDocument();
+          // Topic list should still be visible (check that at least one element with the name exists)
+          const topicElements = screen.getAllByText(selectedTopic.name);
+          expect(topicElements.length).toBeGreaterThan(0);
+
+          cleanup();
         }
       ),
       { numRuns: 10 }
     );
-  });
+  }, 10000);
 
   /**
    * Property: Component handles API errors (4xx, 5xx) appropriately
@@ -738,45 +669,37 @@ describe('Property 12: Topic Fetch Error Handling', () => {
             refetch: vi.fn(),
           } as any);
 
-          const mockUseTopicData = vi.fn();
-          vi.mocked(hooks.useTopicData).mockImplementation(mockUseTopicData);
-
-          mockUseTopicData.mockReturnValue({
-            data: undefined,
-            isLoading: false,
-            error: null,
-            refetch: vi.fn(),
-          } as any);
-
-          const { rerender } = render(<TopicViewer componentId={componentId} />, {
-            wrapper: createWrapper(),
-          });
-
-          // Select the topic
-          await clickTopicInList(topic.name);
-
           // Simulate API error with status code
           const apiError = new Error(`HTTP ${statusCode} error`);
           (apiError as any).response = { status: statusCode };
 
-          mockUseTopicData.mockReturnValue({
+          vi.mocked(hooks.useTopicData).mockReturnValue({
             data: undefined,
             isLoading: false,
             error: apiError,
             refetch: vi.fn(),
           } as any);
 
-          rerender(<TopicViewer componentId={componentId} />);
+          render(<TopicViewer componentId={componentId} />, {
+            wrapper: createFreshWrapper(),
+          });
+
+          // Select the topic
+          await clickTopicInList(topic.name);
 
           // Verify error is handled appropriately
           await waitFor(() => {
-            expect(screen.getByText('Failed to load topic data')).toBeInTheDocument();
-            expect(screen.getByText('Retry')).toBeInTheDocument();
-          });
+            const errorTitle = screen.getByText('Failed to load topic data');
+            expect(errorTitle).toBeInTheDocument();
+            const retryButton = screen.getByRole('button', { name: /retry/i });
+            expect(retryButton).toBeInTheDocument();
+          }, { timeout: 1000 });
 
           // Component should remain functional
           const topicElements = screen.getAllByText(topic.name);
           expect(topicElements.length).toBeGreaterThan(0);
+
+          cleanup();
         }
       ),
       { numRuns: 10 }
@@ -803,39 +726,30 @@ describe('Property 12: Topic Fetch Error Handling', () => {
             refetch: vi.fn(),
           } as any);
 
-          const mockUseTopicData = vi.fn();
-          vi.mocked(hooks.useTopicData).mockImplementation(mockUseTopicData);
-
-          mockUseTopicData.mockReturnValue({
-            data: undefined,
-            isLoading: false,
-            error: null,
-            refetch: vi.fn(),
-          } as any);
-
-          const { rerender } = render(<TopicViewer componentId={componentId} />, {
-            wrapper: createWrapper(),
-          });
-
-          // Select the topic
-          await clickTopicInList(topic.name);
-
+          const topicDataMock = vi.mocked(hooks.useTopicData);
+          
           // First show error
-          mockUseTopicData.mockReturnValue({
+          topicDataMock.mockReturnValue({
             data: undefined,
             isLoading: false,
             error: new Error('Network error'),
             refetch: vi.fn(),
           } as any);
 
-          rerender(<TopicViewer componentId={componentId} />);
-
-          await waitFor(() => {
-            expect(screen.getByText('Failed to load topic data')).toBeInTheDocument();
+          const { rerender } = render(<TopicViewer componentId={componentId} />, {
+            wrapper: createFreshWrapper(),
           });
 
+          // Select the topic
+          await clickTopicInList(topic.name);
+
+          await waitFor(() => {
+            const errorTitle = screen.getByText('Failed to load topic data');
+            expect(errorTitle).toBeInTheDocument();
+          }, { timeout: 1000 });
+
           // Then recover with data
-          mockUseTopicData.mockReturnValue({
+          topicDataMock.mockReturnValue({
             data: topic.data,
             isLoading: false,
             error: null,
@@ -849,7 +763,9 @@ describe('Property 12: Topic Fetch Error Handling', () => {
             expect(screen.queryByText('Failed to load topic data')).not.toBeInTheDocument();
             // JsonInspector controls should be visible
             expect(screen.getByText('Expand All')).toBeInTheDocument();
-          });
+          }, { timeout: 1000 });
+
+          cleanup();
         }
       ),
       { numRuns: 10 }

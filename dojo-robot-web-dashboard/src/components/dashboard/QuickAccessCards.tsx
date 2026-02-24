@@ -1,0 +1,201 @@
+import { Navigation, Eye, Shield, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useSystemHealth } from '@/features/api/hooks';
+
+/**
+ * QuickAccessCards Component
+ * 
+ * Provides quick-access cards linking to major subsystems:
+ * - Navigation subsystem (link to visualizations/map)
+ * - Perception subsystem (link to semantic objects)
+ * - Safety subsystem (link to fault monitoring)
+ * 
+ * Each card displays:
+ * - Appropriate icon
+ * - Subsystem name
+ * - Brief description
+ * - Key metrics relevant to that subsystem
+ * - Visual status indicator
+ * 
+ * Requirements: 8.9
+ */
+export function QuickAccessCards() {
+  const { data, isLoading } = useSystemHealth();
+
+  // Calculate metrics for each subsystem
+  const navigationMetrics = {
+    status: 'active' as const,
+    activeGoals: 1, // Mock data - would come from navigation topics
+    pathLength: 12.5, // meters
+  };
+
+  const perceptionMetrics = {
+    status: 'active' as const,
+    detectedObjects: 23, // Mock data - would come from semantic object topics
+    confidence: 0.87,
+  };
+
+  const safetyMetrics = {
+    status: data?.faultCounts.error ? ('critical' as const) : 
+            data?.faultCounts.warning ? ('warning' as const) : 
+            ('healthy' as const),
+    activeFaults: (data?.faultCounts.error || 0) + (data?.faultCounts.warning || 0),
+    lastCheck: 'Just now',
+  };
+
+  const cards = [
+    {
+      id: 'navigation',
+      title: 'Navigation',
+      description: 'Path planning and autonomous navigation',
+      icon: Navigation,
+      link: '/visualizations',
+      iconColor: 'text-blue-500',
+      bgColor: 'bg-blue-500/10',
+      borderColor: 'border-blue-500/20',
+      hoverBorderColor: 'hover:border-blue-500/50',
+      metrics: [
+        { label: 'Active Goals', value: navigationMetrics.activeGoals },
+        { label: 'Path Length', value: `${navigationMetrics.pathLength}m` },
+      ],
+      status: navigationMetrics.status,
+    },
+    {
+      id: 'perception',
+      title: 'Perception',
+      description: 'Semantic object detection and scene understanding',
+      icon: Eye,
+      link: '/visualizations',
+      iconColor: 'text-purple-500',
+      bgColor: 'bg-purple-500/10',
+      borderColor: 'border-purple-500/20',
+      hoverBorderColor: 'hover:border-purple-500/50',
+      metrics: [
+        { label: 'Detected Objects', value: perceptionMetrics.detectedObjects },
+        { label: 'Confidence', value: `${(perceptionMetrics.confidence * 100).toFixed(0)}%` },
+      ],
+      status: perceptionMetrics.status,
+    },
+    {
+      id: 'safety',
+      title: 'Safety',
+      description: 'Fault monitoring and system diagnostics',
+      icon: Shield,
+      link: '/faults',
+      iconColor: safetyMetrics.status === 'critical' ? 'text-red-500' : 
+                 safetyMetrics.status === 'warning' ? 'text-yellow-500' : 
+                 'text-green-500',
+      bgColor: safetyMetrics.status === 'critical' ? 'bg-red-500/10' : 
+               safetyMetrics.status === 'warning' ? 'bg-yellow-500/10' : 
+               'bg-green-500/10',
+      borderColor: safetyMetrics.status === 'critical' ? 'border-red-500/20' : 
+                   safetyMetrics.status === 'warning' ? 'border-yellow-500/20' : 
+                   'border-green-500/20',
+      hoverBorderColor: safetyMetrics.status === 'critical' ? 'hover:border-red-500/50' : 
+                        safetyMetrics.status === 'warning' ? 'hover:border-yellow-500/50' : 
+                        'hover:border-green-500/50',
+      metrics: [
+        { label: 'Active Faults', value: safetyMetrics.activeFaults },
+        { label: 'Last Check', value: safetyMetrics.lastCheck },
+      ],
+      status: safetyMetrics.status,
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {cards.map((card) => (
+        <QuickAccessCard
+          key={card.id}
+          {...card}
+          isLoading={isLoading}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * QuickAccessCard Component
+ * Individual card for a subsystem with metrics and navigation
+ */
+interface QuickAccessCardProps {
+  title: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  link: string;
+  iconColor: string;
+  bgColor: string;
+  borderColor: string;
+  hoverBorderColor: string;
+  metrics: Array<{ label: string; value: string | number }>;
+  status: 'active' | 'healthy' | 'warning' | 'critical';
+  isLoading?: boolean;
+}
+
+function QuickAccessCard({
+  title,
+  description,
+  icon: Icon,
+  link,
+  iconColor,
+  bgColor,
+  borderColor,
+  hoverBorderColor,
+  metrics,
+  status,
+  isLoading,
+}: QuickAccessCardProps) {
+  const statusIndicatorColor = {
+    active: 'bg-green-500',
+    healthy: 'bg-green-500',
+    warning: 'bg-yellow-500',
+    critical: 'bg-red-500',
+  }[status];
+
+  return (
+    <Link
+      to={link}
+      className={`group relative rounded-lg border-2 ${borderColor} ${hoverBorderColor} ${bgColor} p-6 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+      aria-label={`Navigate to ${title} subsystem`}
+    >
+      {/* Status Indicator */}
+      <div className="absolute top-4 right-4">
+        <div
+          className={`h-3 w-3 rounded-full ${statusIndicatorColor} animate-pulse`}
+          role="status"
+          aria-label={`${title} status: ${status}`}
+        />
+      </div>
+
+      {/* Icon and Title */}
+      <div className="flex items-start gap-4 mb-4">
+        <div className={`rounded-lg ${bgColor} p-3 ring-1 ring-black/5`}>
+          <Icon className={`h-6 w-6 ${iconColor}`} aria-hidden="true" />
+        </div>
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold mb-1">{title}</h3>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
+      </div>
+
+      {/* Metrics */}
+      <div className="space-y-3 mb-4">
+        {metrics.map((metric, index) => (
+          <div key={index} className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">{metric.label}</span>
+            <span className="text-sm font-semibold">
+              {isLoading ? '...' : metric.value}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Navigation Arrow */}
+      <div className="flex items-center justify-end text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+        <span>View Details</span>
+        <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
+      </div>
+    </Link>
+  );
+}

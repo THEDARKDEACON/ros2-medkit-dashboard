@@ -115,11 +115,11 @@ const themeColors = {
     secondary: '210 40% 96.1%',
     secondaryForeground: '222.2 47.4% 11.2%',
     muted: '210 40% 96.1%',
-    mutedForeground: '215.4 16.3% 46.9%',
+    mutedForeground: '215.4 16.3% 36.9%',
     accent: '210 40% 96.1%',
     accentForeground: '222.2 47.4% 11.2%',
     destructive: '0 84.2% 60.2%',
-    destructiveForeground: '210 40% 98%',
+    destructiveForeground: '0 0% 0%',
   },
   dark: {
     background: '222.2 84% 4.9%',

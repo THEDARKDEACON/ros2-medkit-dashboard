@@ -1,6 +1,8 @@
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom';
 import { AppShell } from '@/components/layout';
+import { useRobotSwitch } from '@/features/api/useRobotSwitch';
+import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 import './App.css';
 
 // Lazy load page components for code splitting
@@ -53,6 +55,12 @@ function LoadingFallback() {
 
 // Root layout component
 function RootLayout() {
+  // Handle robot switching - updates API client, clears cache, disconnects connections
+  useRobotSwitch();
+  
+  // Enable global keyboard navigation
+  useKeyboardNavigation();
+
   return (
     <AppShell>
       <Suspense fallback={<LoadingFallback />}>

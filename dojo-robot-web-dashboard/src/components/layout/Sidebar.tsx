@@ -37,8 +37,10 @@ export function Sidebar() {
       className={`fixed left-0 top-16 h-[calc(100vh-4rem-2.5rem)] border-r bg-card transition-all duration-300 ${
         sidebarCollapsed ? 'w-16' : 'w-64'
       }`}
+      role="navigation"
+      aria-label="Main navigation"
     >
-      <nav className="flex h-full flex-col gap-1 p-2">
+      <nav className="flex h-full flex-col gap-1 p-2" aria-label="Primary navigation">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
@@ -50,8 +52,10 @@ export function Sidebar() {
                 isActive ? 'bg-accent text-accent-foreground' : ''
               }`}
               title={sidebarCollapsed ? item.name : undefined}
+              aria-label={item.name}
+              aria-current={isActive ? 'page' : undefined}
             >
-              <Icon className="h-5 w-5 flex-shrink-0" />
+              <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
               {!sidebarCollapsed && <span>{item.name}</span>}
             </Link>
           );

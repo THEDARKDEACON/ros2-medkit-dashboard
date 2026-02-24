@@ -1,3 +1,7 @@
+import { SystemHealthOverview } from '@/components/dashboard/SystemHealthOverview';
+import { MetricsPanel } from '@/components/dashboard/MetricsPanel';
+import { QuickAccessCards } from '@/components/dashboard/QuickAccessCards';
+
 export function Dashboard() {
   return (
     <div className="space-y-6">
@@ -8,28 +12,21 @@ export function Dashboard() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <div className="rounded-lg border bg-card p-6 shadow-sm">
-          <h2 className="text-xl font-semibold">System Status</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Monitor overall system health and component status
-          </p>
-        </div>
+      {/* System Health Overview */}
+      <section>
+        <SystemHealthOverview />
+      </section>
 
-        <div className="rounded-lg border bg-card p-6 shadow-sm">
-          <h2 className="text-xl font-semibold">Real-time Data</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            View live topic data and sensor information
-          </p>
-        </div>
+      {/* Quick Access Cards */}
+      <section>
+        <h2 className="text-xl font-semibold mb-4">Quick Access</h2>
+        <QuickAccessCards />
+      </section>
 
-        <div className="rounded-lg border bg-card p-6 shadow-sm">
-          <h2 className="text-xl font-semibold">Control Panel</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Execute operations and manage parameters
-          </p>
-        </div>
-      </div>
+      {/* Metrics Panel */}
+      <section>
+        <MetricsPanel />
+      </section>
     </div>
   );
 }
