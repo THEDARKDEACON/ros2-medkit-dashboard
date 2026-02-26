@@ -73,47 +73,23 @@ function calculateByteSize(data: unknown): number {
 /**
  * Check if a value or its children contain the search term
  */
-function matchesSearch(value: unknown, searchTerm: string): boolean {
-  if (!searchTerm) return false;
-  
-  const lowerSearch = searchTerm.toLowerCase();
-  
-  if (value === null || value === undefined) {
-    return String(value).toLowerCase().includes(lowerSearch);
-  }
-  
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    return String(value).toLowerCase().includes(lowerSearch);
-  }
-  
-  if (Array.isArray(value)) {
-    return value.some(item => matchesSearch(item, searchTerm));
-  }
-  
-  if (typeof value === 'object') {
-    return Object.entries(value).some(([key, val]) => 
-      key.toLowerCase().includes(lowerSearch) || matchesSearch(val, searchTerm)
-    );
-  }
-  
-  return false;
-}
+
 
 /**
  * Render a JSON node (recursive component)
  */
-function JsonNode({ 
-  data, 
-  path, 
-  depth, 
-  searchTerm, 
-  expandedPaths, 
+function JsonNode({
+  data,
+  path,
+  depth,
+  searchTerm,
+  expandedPaths,
   onTogglePath,
-  maxExpandDepth 
+  maxExpandDepth
 }: JsonNodeProps) {
   const type = getDataType(data);
   const isExpanded = expandedPaths.has(path) || (depth < maxExpandDepth);
-  
+
   // Primitive values
   if (type === 'string') {
     const stringValue = data as string;
@@ -128,27 +104,27 @@ function JsonNode({
       </span>
     );
   }
-  
+
   if (type === 'number' || type === 'boolean') {
     return <span className={getTypeColor(type)}>{String(data)}</span>;
   }
-  
+
   if (type === 'null') {
     return <span className={getTypeColor(type)}>null</span>;
   }
-  
+
   if (data === undefined) {
     return <span className={getTypeColor('undefined')}>undefined</span>;
   }
-  
+
   // Arrays
   if (Array.isArray(data)) {
     const arrayData = data as unknown[];
-    
+
     if (arrayData.length === 0) {
       return <span className="text-muted-foreground">[]</span>;
     }
-    
+
     return (
       <div className="inline-block">
         <button
@@ -187,16 +163,16 @@ function JsonNode({
       </div>
     );
   }
-  
+
   // Objects
   if (typeof data === 'object' && data !== null) {
     const objectData = data as Record<string, unknown>;
     const keys = Object.keys(objectData);
-    
+
     if (keys.length === 0) {
       return <span className="text-muted-foreground">{'{}'}</span>;
     }
-    
+
     return (
       <div className="inline-block">
         <button
@@ -245,7 +221,7 @@ function JsonNode({
       </div>
     );
   }
-  
+
   return <span className="text-muted-foreground">{String(data)}</span>;
 }
 
@@ -265,20 +241,20 @@ export function JsonInspector({
     () => new Set(defaultExpanded ? ['root'] : [])
   );
   const [copied, setCopied] = useState(false);
-  
+
   // Calculate byte size
   const byteSize = useMemo(() => calculateByteSize(data), [data]);
-  
+
   // Format byte size for display
   const formattedSize = useMemo(() => {
     if (byteSize < 1024) return `${byteSize} bytes`;
     if (byteSize < 1024 * 1024) return `${(byteSize / 1024).toFixed(2)} KB`;
     return `${(byteSize / (1024 * 1024)).toFixed(2)} MB`;
   }, [byteSize]);
-  
+
   // Get data type
   const dataType = useMemo(() => getDataType(data), [data]);
-  
+
   // Toggle path expansion
   const handleTogglePath = useCallback((path: string) => {
     setExpandedPaths((prev) => {
@@ -291,7 +267,7 @@ export function JsonInspector({
       return next;
     });
   }, []);
-  
+
   // Copy to clipboard
   const handleCopy = useCallback(async () => {
     try {
@@ -302,14 +278,14 @@ export function JsonInspector({
       console.error('Failed to copy to clipboard:', error);
     }
   }, [data]);
-  
+
   // Expand all
   const handleExpandAll = useCallback(() => {
     const allPaths = new Set<string>();
-    
+
     const collectPaths = (obj: unknown, currentPath: string) => {
       if (obj === null || obj === undefined) return;
-      
+
       if (Array.isArray(obj)) {
         allPaths.add(currentPath);
         obj.forEach((item, index) => {
@@ -322,16 +298,16 @@ export function JsonInspector({
         });
       }
     };
-    
+
     collectPaths(data, 'root');
     setExpandedPaths(allPaths);
   }, [data]);
-  
+
   // Collapse all
   const handleCollapseAll = useCallback(() => {
     setExpandedPaths(new Set());
   }, []);
-  
+
   return (
     <div className="space-y-3" role="region" aria-label="JSON Inspector">
       {/* Controls */}
@@ -351,7 +327,7 @@ export function JsonInspector({
             </div>
           )}
         </div>
-        
+
         <div className="flex items-center gap-2">
           <button
             onClick={handleExpandAll}
@@ -388,9 +364,9 @@ export function JsonInspector({
           )}
         </div>
       </div>
-      
+
       {/* JSON Display */}
-      <div 
+      <div
         className="bg-muted/30 dark:bg-muted/10 p-4 rounded-lg overflow-auto font-mono text-sm border border-border"
         role="tree"
         aria-label="JSON data tree"
@@ -405,7 +381,7 @@ export function JsonInspector({
           maxExpandDepth={maxExpandDepth}
         />
       </div>
-      
+
       {/* Metadata */}
       <div className="flex items-center gap-4 text-xs text-muted-foreground">
         <span>Type: <span className="font-medium text-foreground">{dataType}</span></span>

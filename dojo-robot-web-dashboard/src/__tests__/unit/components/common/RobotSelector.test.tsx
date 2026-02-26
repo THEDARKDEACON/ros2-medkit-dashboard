@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { RobotSelector } from '@/components/common/RobotSelector';
 import { useRobotStore } from '@/features/stores/robotStore';
 
@@ -28,10 +28,10 @@ describe('RobotSelector', () => {
 
   it('should display add robot form when Add Robot button is clicked', () => {
     render(<RobotSelector />);
-    
+
     // Open dropdown
     fireEvent.click(screen.getByRole('button', { name: /select robot/i }));
-    
+
     // Click Add Robot button
     fireEvent.click(screen.getByText('Add Robot'));
 
@@ -41,7 +41,7 @@ describe('RobotSelector', () => {
 
   it('should add a new robot with valid inputs', () => {
     render(<RobotSelector />);
-    
+
     // Open dropdown and show form
     fireEvent.click(screen.getByRole('button', { name: /select robot/i }));
     fireEvent.click(screen.getByText('Add Robot'));
@@ -66,7 +66,7 @@ describe('RobotSelector', () => {
 
   it('should show error for invalid URL', () => {
     render(<RobotSelector />);
-    
+
     // Open dropdown and show form
     fireEvent.click(screen.getByRole('button', { name: /select robot/i }));
     fireEvent.click(screen.getByText('Add Robot'));
@@ -88,7 +88,7 @@ describe('RobotSelector', () => {
 
   it('should show error when robot name is empty', () => {
     render(<RobotSelector />);
-    
+
     // Open dropdown and show form
     fireEvent.click(screen.getByRole('button', { name: /select robot/i }));
     fireEvent.click(screen.getByText('Add Robot'));
@@ -107,7 +107,7 @@ describe('RobotSelector', () => {
 
   it('should cancel add robot form', () => {
     render(<RobotSelector />);
-    
+
     // Open dropdown and show form
     fireEvent.click(screen.getByRole('button', { name: /select robot/i }));
     fireEvent.click(screen.getByText('Add Robot'));
@@ -131,7 +131,7 @@ describe('RobotSelector', () => {
     addRobot('Robot 2', 'http://localhost:8081');
 
     render(<RobotSelector />);
-    
+
     // Open dropdown
     fireEvent.click(screen.getByRole('button', { name: /select robot/i }));
 
@@ -145,11 +145,11 @@ describe('RobotSelector', () => {
   it('should switch to selected robot', () => {
     // Add robots to store
     const { addRobot } = useRobotStore.getState();
-    const id1 = addRobot('Robot 1', 'http://localhost:8080');
+    addRobot('Robot 1', 'http://localhost:8080');
     const id2 = addRobot('Robot 2', 'http://localhost:8081');
 
     render(<RobotSelector />);
-    
+
     // Open dropdown
     fireEvent.click(screen.getByRole('button', { name: /select robot/i }));
 
@@ -180,7 +180,7 @@ describe('RobotSelector', () => {
     switchRobot(id);
 
     render(<RobotSelector />);
-    
+
     // Open dropdown
     fireEvent.click(screen.getByRole('button', { name: /select robot/i }));
 
@@ -195,7 +195,7 @@ describe('RobotSelector', () => {
     const id = addRobot('Robot to Remove', 'http://localhost:8080');
 
     render(<RobotSelector />);
-    
+
     // Open dropdown
     fireEvent.click(screen.getByRole('button', { name: /select robot/i }));
 
@@ -210,7 +210,7 @@ describe('RobotSelector', () => {
 
   it('should accept HTTPS URLs', () => {
     render(<RobotSelector />);
-    
+
     // Open dropdown and show form
     fireEvent.click(screen.getByRole('button', { name: /select robot/i }));
     fireEvent.click(screen.getByText('Add Robot'));

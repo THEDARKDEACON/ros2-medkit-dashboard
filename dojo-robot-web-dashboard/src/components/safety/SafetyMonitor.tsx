@@ -29,7 +29,7 @@ export function SafetyMonitor({ componentId, refreshInterval = 1000 }: SafetyMon
     componentId,
     { refetchInterval: refreshInterval }
   );
-  
+
   const { data: behaviorTree, isLoading: treeLoading, error: treeError } = useBehaviorTree(
     componentId,
     { refetchInterval: refreshInterval }
@@ -94,7 +94,7 @@ export function SafetyMonitor({ componentId, refreshInterval = 1000 }: SafetyMon
   };
 
   const currentHealth = healthConfig[safetyStatus.systemHealth] || healthConfig.healthy;
-  const HealthIcon = currentHealth.icon;
+
 
   return (
     <div className="space-y-6">
@@ -126,7 +126,7 @@ export function SafetyMonitor({ componentId, refreshInterval = 1000 }: SafetyMon
               </p>
             </div>
           </div>
-          
+
           {/* Emergency Stop Button */}
           <EmergencyStopButton
             componentId={componentId}
@@ -493,7 +493,7 @@ function formatUptime(seconds: number): string {
   const days = Math.floor(seconds / 86400);
   const hours = Math.floor((seconds % 86400) / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
-  
+
   if (days > 0) {
     return `${days}d ${hours}h`;
   } else if (hours > 0) {

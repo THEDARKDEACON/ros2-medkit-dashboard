@@ -124,16 +124,15 @@ export function TopicViewer({ componentId }: TopicViewerProps) {
                 items={topics}
                 itemHeight={64}
                 height={Math.min(600, topics.length * 64)}
-                renderItem={(topic, index, style) => (
+                renderItem={(topic, _index, style) => (
                   <button
                     key={topic.name}
                     onClick={() => handleSelectTopic(topic.name)}
                     style={style}
-                    className={`w-full text-left p-3 border-b border-border hover:bg-muted/50 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset ${
-                      selectedTopic === topic.name
+                    className={`w-full text-left p-3 border-b border-border hover:bg-muted/50 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset ${selectedTopic === topic.name
                         ? 'bg-muted border-l-4 border-l-primary'
                         : ''
-                    }`}
+                      }`}
                     aria-pressed={selectedTopic === topic.name}
                   >
                     <div className="font-medium text-sm text-foreground truncate">
@@ -151,11 +150,10 @@ export function TopicViewer({ componentId }: TopicViewerProps) {
                 <button
                   key={topic.name}
                   onClick={() => handleSelectTopic(topic.name)}
-                  className={`w-full text-left p-3 border-b border-border hover:bg-muted/50 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset ${
-                    selectedTopic === topic.name
+                  className={`w-full text-left p-3 border-b border-border hover:bg-muted/50 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-inset ${selectedTopic === topic.name
                       ? 'bg-muted border-l-4 border-l-primary'
                       : ''
-                  }`}
+                    }`}
                   aria-pressed={selectedTopic === topic.name}
                 >
                   <div className="font-medium text-sm text-foreground truncate">
@@ -242,7 +240,7 @@ export function TopicViewer({ componentId }: TopicViewerProps) {
 
               {/* Timestamp */}
               {selectedTopicObj && (
-                <div 
+                <div
                   className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground"
                   data-testid="topic-timestamp"
                 >

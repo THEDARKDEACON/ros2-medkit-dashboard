@@ -63,7 +63,7 @@ export function OperationList({
         return (
           op.name.toLowerCase().includes(searchLower) ||
           op.description?.toLowerCase().includes(searchLower) ||
-          op.parameters.some((p) =>
+          op.parameters?.some((p) =>
             p.name.toLowerCase().includes(searchLower)
           )
         );
@@ -178,11 +178,10 @@ export function OperationList({
             <button
               key={operation.id}
               onClick={() => handleSelectOperation(operation)}
-              className={`w-full text-left p-4 border rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
-                selectedOperationId === operation.id
+              className={`w-full text-left p-4 border rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${selectedOperationId === operation.id
                   ? 'bg-muted border-primary shadow-sm'
                   : 'border-border hover:bg-muted/50 hover:border-muted-foreground/20'
-              }`}
+                }`}
               aria-pressed={selectedOperationId === operation.id}
             >
               {/* Operation Header */}
@@ -194,11 +193,10 @@ export function OperationList({
                     </h4>
                     {/* Type Badge */}
                     <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${
-                        operation.type === 'service'
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${operation.type === 'service'
                           ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                           : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                      }`}
+                        }`}
                     >
                       {operation.type === 'service' ? (
                         <>
@@ -222,13 +220,13 @@ export function OperationList({
                   )}
 
                   {/* Parameters Summary */}
-                  {operation.parameters.length > 0 && (
+                  {(operation.parameters?.length ?? 0) > 0 && (
                     <div className="mt-2 flex items-center gap-2 flex-wrap">
                       <span className="text-xs text-muted-foreground">
                         Parameters:
                       </span>
                       <div className="flex items-center gap-1 flex-wrap">
-                        {operation.parameters.slice(0, 3).map((param) => (
+                        {operation.parameters?.slice(0, 3).map((param) => (
                           <span
                             key={param.name}
                             className="inline-flex items-center px-2 py-0.5 text-xs bg-muted border border-border rounded"
@@ -239,9 +237,9 @@ export function OperationList({
                             )}
                           </span>
                         ))}
-                        {operation.parameters.length > 3 && (
+                        {(operation.parameters?.length ?? 0) > 3 && (
                           <span className="text-xs text-muted-foreground">
-                            +{operation.parameters.length - 3} more
+                            +{(operation.parameters?.length ?? 0) - 3} more
                           </span>
                         )}
                       </div>

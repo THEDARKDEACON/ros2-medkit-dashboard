@@ -9,7 +9,6 @@ import {
   parseConfiguration,
   serializeConfiguration,
   mergeConfiguration,
-  createDefaultConfiguration,
 } from '@/utils/configuration';
 import type {
   DashboardConfiguration,
@@ -182,7 +181,7 @@ describe('Configuration Property Tests', () => {
         expect(result.success).toBe(false);
         expect(result.errors).toBeDefined();
         expect(result.errors!.length).toBeGreaterThan(0);
-        
+
         // Check that error message is descriptive
         const errorMessages = result.errors!.map(e => e.field + ' ' + e.message).join(' ');
         expect(errorMessages.toLowerCase()).toContain(expectedError.toLowerCase());
@@ -204,7 +203,7 @@ describe('Configuration Property Tests', () => {
 
       expect(result.success).toBe(false);
       expect(result.errors).toBeDefined();
-      
+
       // Should have errors for both invalid fields
       const fields = result.errors!.map(e => e.field);
       expect(fields.some(f => f.includes('theme'))).toBe(true);
@@ -375,12 +374,13 @@ describe('Configuration Property Tests', () => {
             expect(merged.settings.layoutMode).toBe(currentConfig.settings.layoutMode);
             expect(merged.settings.sidebarCollapsed).toBe(currentConfig.settings.sidebarCollapsed);
 
+            const partial = partialConfig as Partial<DashboardConfiguration>;
             // Arrays not specified should remain unchanged
-            if (partialConfig.layouts === undefined) {
+            if (partial.layouts === undefined) {
               expect(merged.layouts).toEqual(currentConfig.layouts);
             }
 
-            if (partialConfig.robotInstances === undefined) {
+            if (partial.robotInstances === undefined) {
               expect(merged.robotInstances).toEqual(currentConfig.robotInstances);
             }
           }

@@ -16,8 +16,7 @@ import { useUIStore } from '@/features/stores/uiStore';
 import {
   parseConfiguration,
   serializeConfiguration,
-  createDefaultConfiguration,
-} from '@/utils/configuration';
+} from '../../utils/configuration';
 import type { DashboardConfiguration } from '@/types/configuration';
 import { EmptyState } from '@/components/common/EmptyState';
 
@@ -51,7 +50,7 @@ export function ConfigurationProfile({ onProfileLoad }: ConfigurationProfileProp
 
   // Get profiles from store
   const { profiles, saveProfile, loadProfile, deleteProfile, getProfile } = useConfigurationStore();
-  
+
   // Get current UI state to create configuration
   const uiState = useUIStore();
 
@@ -84,7 +83,7 @@ export function ConfigurationProfile({ onProfileLoad }: ConfigurationProfileProp
     try {
       const config = getCurrentConfiguration();
       saveProfile(profileName.trim(), profileDescription.trim() || undefined, config);
-      
+
       // Reset form
       setProfileName('');
       setProfileDescription('');
@@ -143,13 +142,13 @@ export function ConfigurationProfile({ onProfileLoad }: ConfigurationProfileProp
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = (e: ProgressEvent<FileReader>) => {
       try {
         const content = e.target?.result as string;
         const parseResult = parseConfiguration(content);
 
         if (!parseResult.success || !parseResult.data) {
-          const errorMessages = parseResult.errors?.map(e => e.message).join(', ') || 'Invalid configuration';
+          const errorMessages = parseResult.errors?.map((e: any) => e.message).join(', ') || 'Invalid configuration';
           setImportError(`Import failed: ${errorMessages}`);
           return;
         }
@@ -172,7 +171,7 @@ export function ConfigurationProfile({ onProfileLoad }: ConfigurationProfileProp
     };
 
     reader.readAsText(file);
-    
+
     // Reset input
     event.target.value = '';
   };

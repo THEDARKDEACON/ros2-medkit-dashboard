@@ -215,7 +215,7 @@ export function memoize<TArgs extends any[], TResult>(
  */
 export class BatchProcessor<T, R> {
   private queue: T[] = [];
-  private timeout: NodeJS.Timeout | null = null;
+  private timeout: ReturnType<typeof setTimeout> | null = null;
   private batchDelay: number;
   private processFn: (items: T[]) => Promise<R[]>;
 

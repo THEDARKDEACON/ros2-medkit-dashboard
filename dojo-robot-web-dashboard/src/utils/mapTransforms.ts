@@ -2,7 +2,7 @@
  * Coordinate transformation utilities for 2D map visualization
  */
 
-import { Point2D, Viewport, OccupancyGrid } from '../types/visualization';
+import type { Point2D, Viewport, OccupancyGrid } from '../types/visualization';
 
 /**
  * Transform world coordinates to canvas coordinates
@@ -70,7 +70,7 @@ export function getGridValue(
   grid: OccupancyGrid
 ): number {
   const gridCoords = worldToGrid(worldPoint, grid);
-  
+
   if (
     gridCoords.x < 0 ||
     gridCoords.x >= grid.width ||
@@ -79,7 +79,7 @@ export function getGridValue(
   ) {
     return -1; // Unknown
   }
-  
+
   const index = gridCoords.y * grid.width + gridCoords.x;
   return grid.data[index];
 }
@@ -114,19 +114,19 @@ export function calculateBounds(points: Point2D[]): {
   if (points.length === 0) {
     return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
   }
-  
+
   let minX = points[0].x;
   let minY = points[0].y;
   let maxX = points[0].x;
   let maxY = points[0].y;
-  
+
   for (const point of points) {
     minX = Math.min(minX, point.x);
     minY = Math.min(minY, point.y);
     maxX = Math.max(maxX, point.x);
     maxY = Math.max(maxY, point.y);
   }
-  
+
   return { minX, minY, maxX, maxY };
 }
 
@@ -142,20 +142,20 @@ export function fitViewportToPoints(
   if (points.length === 0) {
     return { x: 0, y: 0, scale: 1 };
   }
-  
+
   const bounds = calculateBounds(points);
   const width = bounds.maxX - bounds.minX;
   const height = bounds.maxY - bounds.minY;
-  
+
   // Calculate scale to fit with padding
   const scaleX = (canvasWidth - 2 * padding) / width;
   const scaleY = (canvasHeight - 2 * padding) / height;
   const scale = Math.min(scaleX, scaleY, 10); // Max scale of 10
-  
+
   // Center the content
   const centerX = (bounds.minX + bounds.maxX) / 2;
   const centerY = (bounds.minY + bounds.maxY) / 2;
-  
+
   return {
     x: canvasWidth / 2 - centerX * scale,
     y: canvasHeight / 2 - centerY * scale,

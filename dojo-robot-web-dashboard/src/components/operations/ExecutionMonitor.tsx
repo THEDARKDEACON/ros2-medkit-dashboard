@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+
 import { Clock, CheckCircle, XCircle, Loader2, Ban } from 'lucide-react';
 import { useExecutionStatus, useCancelExecution } from '@/features/api/hooks';
 import type { Execution } from '@/types/api';
@@ -141,7 +141,7 @@ export function ExecutionMonitor({
   const StatusIcon = getStatusIcon(execution.status);
   const statusColor = getStatusColor(execution.status);
   const isActive = execution.status === 'pending' || execution.status === 'running';
-  const isComplete = execution.status === 'succeeded' || execution.status === 'failed' || execution.status === 'cancelled';
+
 
   return (
     <div className="border border-border rounded-lg bg-card">
@@ -199,7 +199,7 @@ export function ExecutionMonitor({
         </div>
 
         {/* Progress Bar */}
-        {execution.progress !== undefined && isActive && (
+        {!!(execution.progress !== undefined && isActive) && (
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Progress</span>
@@ -221,7 +221,7 @@ export function ExecutionMonitor({
         )}
 
         {/* Feedback Data */}
-        {execution.feedback && (
+        {!!execution.feedback && (
           <div className="space-y-2">
             <label className="block text-sm font-medium text-foreground">
               Feedback
@@ -233,7 +233,7 @@ export function ExecutionMonitor({
         )}
 
         {/* Result Data */}
-        {execution.result && execution.status === 'succeeded' && (
+        {!!execution.result && execution.status === 'succeeded' && (
           <div className="space-y-2">
             <label className="block text-sm font-medium text-foreground">
               Result
@@ -245,7 +245,7 @@ export function ExecutionMonitor({
         )}
 
         {/* Error Message */}
-        {execution.error && execution.status === 'failed' && (
+        {!!execution.error && execution.status === 'failed' && (
           <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
             <XCircle
               className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5"

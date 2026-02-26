@@ -24,7 +24,7 @@ interface OperationExecutorProps {
  */
 function validateParameterValue(value: string, type: string): { isValid: boolean; error?: string } {
   const trimmedValue = value.trim();
-  
+
   // Empty values are considered valid here (required check is done separately)
   if (!trimmedValue) {
     return { isValid: true };
@@ -229,10 +229,10 @@ export function OperationExecutor({
   // Validate all parameters
   const validationResults = useMemo(() => {
     const results: Record<string, { isValid: boolean; error?: string }> = {};
-    
+
     operation.parameters.forEach((param) => {
       const value = parameters[param.name] || '';
-      
+
       // Check if required parameter is missing
       if (param.required && !value.trim()) {
         results[param.name] = { isValid: false, error: 'This field is required' };
@@ -392,12 +392,11 @@ export function OperationExecutor({
                           ? '["item1", "item2"]'
                           : '{"key": "value"}'
                       }
-                      className={`w-full h-24 px-3 py-2 font-mono text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 resize-y ${
-                        hasError
-                          ? 'border-destructive focus:ring-destructive'
-                          : 'border-input'
-                      }`}
-                      aria-invalid={hasError}
+                      className={`w-full h-24 px-3 py-2 font-mono text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 resize-y ${hasError
+                        ? 'border-destructive focus:ring-destructive'
+                        : 'border-input'
+                        }`}
+                      aria-invalid={hasError ? 'true' : 'false'}
                       aria-describedby={hasError ? `error-${param.name}` : undefined}
                       aria-required={param.required}
                     />
@@ -413,12 +412,11 @@ export function OperationExecutor({
                           ? 'true or false'
                           : `Enter ${param.type}`
                       }
-                      className={`w-full px-3 py-2 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
-                        hasError
-                          ? 'border-destructive focus:ring-destructive'
-                          : 'border-input'
-                      }`}
-                      aria-invalid={hasError}
+                      className={`w-full px-3 py-2 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${hasError
+                        ? 'border-destructive focus:ring-destructive'
+                        : 'border-input'
+                        }`}
+                      aria-invalid={hasError ? 'true' : 'false'}
                       aria-describedby={hasError ? `error-${param.name}` : undefined}
                       aria-required={param.required}
                     />
@@ -453,7 +451,7 @@ export function OperationExecutor({
               <p className="text-sm font-medium text-green-600 dark:text-green-400">
                 Operation executed successfully
               </p>
-              {operation.type === 'service' && executionResult && (
+              {operation.type === 'service' && !!executionResult && (
                 <p className="text-sm text-green-600/80 dark:text-green-400/80 mt-1">
                   Service completed with result
                 </p>
@@ -489,7 +487,7 @@ export function OperationExecutor({
         )}
 
         {/* Execution Result (for services) */}
-        {executionResult && operation.type === 'service' && (
+        {!!executionResult && operation.type === 'service' && (
           <div className="space-y-2">
             <label className="block text-sm font-medium text-foreground">
               Result

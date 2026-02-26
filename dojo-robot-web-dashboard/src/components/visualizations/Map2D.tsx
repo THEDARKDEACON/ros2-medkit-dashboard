@@ -4,7 +4,7 @@
  */
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import {
+import type {
   RobotPose,
   OccupancyGrid,
   SemanticObject,
@@ -111,7 +111,7 @@ export const Map2D: React.FC<Map2DProps> = ({
   const handleWheel = useCallback(
     (e: React.WheelEvent<HTMLCanvasElement>) => {
       e.preventDefault();
-      
+
       const canvas = canvasRef.current;
       if (!canvas) return;
 
@@ -301,7 +301,7 @@ export const Map2D: React.FC<Map2DProps> = ({
         className="border border-gray-300 dark:border-gray-700 rounded-lg cursor-move"
         style={{ touchAction: 'none' }}
       />
-      
+
       {/* Tooltip */}
       {hoveredObject && config.showTooltip && !selectedObject && (
         <div
@@ -443,10 +443,10 @@ function drawCoordinates(
   height: number
 ): void {
   const worldPos = canvasToWorld(mousePos, viewport, height);
-  
+
   ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
   ctx.fillRect(mousePos.x + 10, mousePos.y - 30, 120, 25);
-  
+
   ctx.fillStyle = '#fff';
   ctx.font = '11px monospace';
   ctx.fillText(

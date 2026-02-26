@@ -1,5 +1,7 @@
 import { memo, useMemo } from 'react';
-import { FixedSizeList as List } from 'react-window';
+import * as ReactWindow from 'react-window';
+
+const List = (ReactWindow as any).FixedSizeList || (ReactWindow as any).default?.FixedSizeList;
 
 interface VirtualizedListProps<T> {
   /**
@@ -81,4 +83,4 @@ export const VirtualizedList = memo(function VirtualizedList<T>({
       {Row}
     </List>
   );
-}) as <T>(props: VirtualizedListProps<T>) => JSX.Element;
+}) as <T>(props: VirtualizedListProps<T>) => React.ReactNode;

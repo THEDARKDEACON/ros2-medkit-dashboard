@@ -3,14 +3,13 @@
  * Efficient rendering functions for occupancy grids, robots, objects, etc.
  */
 
-import {
+import type {
   OccupancyGrid,
   RobotPose,
   SemanticObject,
   Frontier,
   PathPoint,
   Viewport,
-  Point2D,
 } from '../types/visualization';
 import { worldToCanvas, gridToWorld } from './mapTransforms';
 
@@ -54,7 +53,7 @@ export function drawOccupancyGrid(
     x: Math.max(0, Math.floor(-viewport.x / viewport.scale / grid.resolution)),
     y: Math.max(0, Math.floor(-viewport.y / viewport.scale / grid.resolution)),
   };
-  
+
   const bottomRight = {
     x: Math.min(
       grid.width,
@@ -74,10 +73,10 @@ export function drawOccupancyGrid(
 
       // Get world coordinates for this cell
       const worldPos = gridToWorld(gx, gy, grid);
-      
+
       // Convert to canvas coordinates
       const canvasPos = worldToCanvas(worldPos, viewport, canvasHeight);
-      
+
       // Calculate cell size in canvas pixels
       const cellSize = grid.resolution * viewport.scale;
 
@@ -102,7 +101,7 @@ export function drawRobot(
   color: string = '#3b82f6'
 ): void {
   const canvasPos = worldToCanvas(pose, viewport, canvasHeight);
-  
+
   const robotRadius = 0.3; // 0.3 meters
   const radiusPixels = robotRadius * viewport.scale;
 
@@ -170,18 +169,18 @@ export function drawSemanticObject(
   canvasHeight: number
 ): void {
   const canvasPos = worldToCanvas(obj.position, viewport, canvasHeight);
-  
+
   // Get color based on object class
   const color = getObjectColor(obj.class);
-  
+
   // Draw object marker (circle with icon)
   const markerRadius = 8;
-  
+
   ctx.fillStyle = color;
   ctx.beginPath();
   ctx.arc(canvasPos.x, canvasPos.y, markerRadius, 0, 2 * Math.PI);
   ctx.fill();
-  
+
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -193,7 +192,7 @@ export function drawSemanticObject(
   ctx.font = '12px sans-serif';
   const label = `${obj.class} (${(obj.confidence * 100).toFixed(0)}%)`;
   const metrics = ctx.measureText(label);
-  
+
   // Label background
   ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
   ctx.fillRect(
@@ -202,7 +201,7 @@ export function drawSemanticObject(
     metrics.width + 8,
     18
   );
-  
+
   // Label text
   ctx.fillStyle = '#000000';
   ctx.fillText(label, canvasPos.x - metrics.width / 2, canvasPos.y + markerRadius + 17);
@@ -222,7 +221,7 @@ function getObjectColor(objectClass: string): string {
     window: '#06b6d4',
     default: '#6b7280',
   };
-  
+
   return colors[objectClass.toLowerCase()] || colors.default;
 }
 

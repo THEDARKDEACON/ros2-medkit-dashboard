@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { X, Plus, Grid3x3, Save, RotateCcw } from 'lucide-react';
+import { X, Plus, Grid3x3, Save } from 'lucide-react';
 import { useLayoutStore } from '../../features/stores/layoutStore';
 import { PANEL_LIBRARY, getPanelsByCategory } from '../../config/panelLibrary';
 import type { PanelConfig, PanelType } from '../../types/layout';
-import GridLayout from 'react-grid-layout';
+import { ReactGridLayout } from 'react-grid-layout';
+// Cast to any - ReactGridLayout v2 accepts legacy v1 props at runtime
+const GridLayoutComponent = ReactGridLayout as any;
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
@@ -18,7 +20,7 @@ export const LayoutCustomizer: React.FC<LayoutCustomizerProps> = ({
 }) => {
   const [showPanelLibrary, setShowPanelLibrary] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  
+
   const {
     getCurrentLayout,
     currentLayoutId,
@@ -26,17 +28,17 @@ export const LayoutCustomizer: React.FC<LayoutCustomizerProps> = ({
     removePanel,
     updatePanelPositions,
   } = useLayoutStore();
-  
+
   const currentLayout = getCurrentLayout();
-  
+
   if (!isOpen || !currentLayout || !currentLayoutId) {
     return null;
   }
-  
+
   const handleAddPanel = (type: PanelType) => {
     const panelDef = PANEL_LIBRARY.find((p) => p.type === type);
     if (!panelDef) return;
-    
+
     const newPanel: PanelConfig = {
       id: `${type}-${Date.now()}`,
       type,
@@ -44,18 +46,18 @@ export const LayoutCustomizer: React.FC<LayoutCustomizerProps> = ({
       size: panelDef.defaultSize,
       config: {},
     };
-    
+
     addPanel(currentLayoutId, newPanel);
     setShowPanelLibrary(false);
   };
-  
+
   const handleRemovePanel = (panelId: string) => {
     removePanel(currentLayoutId, panelId);
   };
-  
-  const handleLayoutChange = (layout: any[]) => {
+
+  const handleLayoutChange = (layout: any) => {
     const updatedPanels: PanelConfig[] = currentLayout.panels.map((panel) => {
-      const layoutItem = layout.find((item) => item.i === panel.id);
+      const layoutItem = layout.find((item: any) => item.i === panel.id);
       if (layoutItem) {
         return {
           ...panel,
@@ -65,15 +67,15 @@ export const LayoutCustomizer: React.FC<LayoutCustomizerProps> = ({
       }
       return panel;
     });
-    
+
     updatePanelPositions(currentLayoutId, updatedPanels);
   };
-  
+
   const filteredPanels =
     selectedCategory === 'all'
       ? PANEL_LIBRARY
       : getPanelsByCategory(selectedCategory as any);
-  
+
   const layoutItems = currentLayout.panels.map((panel) => ({
     i: panel.id,
     x: panel.position.x,
@@ -83,7 +85,7 @@ export const LayoutCustomizer: React.FC<LayoutCustomizerProps> = ({
     minW: PANEL_LIBRARY.find((p) => p.type === panel.type)?.minSize.width || 2,
     minH: PANEL_LIBRARY.find((p) => p.type === panel.type)?.minSize.height || 2,
   }));
-  
+
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm">
       <div className="flex h-full">
@@ -119,10 +121,10 @@ export const LayoutCustomizer: React.FC<LayoutCustomizerProps> = ({
               </button>
             </div>
           </div>
-          
+
           {/* Grid layout */}
           <div className="rounded-lg bg-white p-4 shadow-sm">
-            <GridLayout
+            <GridLayoutComponent
               className="layout"
               layout={layoutItems}
               cols={12}
@@ -157,10 +159,10 @@ export const LayoutCustomizer: React.FC<LayoutCustomizerProps> = ({
                   </div>
                 );
               })}
-            </GridLayout>
+            </GridLayoutComponent>
           </div>
         </div>
-        
+
         {/* Panel library sidebar */}
         {showPanelLibrary && (
           <div className="w-80 border-l bg-white p-6 shadow-lg">
@@ -173,7 +175,7 @@ export const LayoutCustomizer: React.FC<LayoutCustomizerProps> = ({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            
+
             {/* Category filter */}
             <div className="mb-4">
               <select
@@ -188,7 +190,7 @@ export const LayoutCustomizer: React.FC<LayoutCustomizerProps> = ({
                 <option value="data">Data</option>
               </select>
             </div>
-            
+
             {/* Panel list */}
             <div className="space-y-2">
               {filteredPanels.map((panel) => (

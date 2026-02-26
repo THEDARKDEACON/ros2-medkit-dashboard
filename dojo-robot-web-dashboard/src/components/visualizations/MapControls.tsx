@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { MapLayers } from '../../types/visualization';
+import type { MapLayers } from '../../types/visualization';
 
 export interface MapControlsProps {
   layers: MapLayers;
@@ -22,13 +22,13 @@ export const MapControls: React.FC<MapControlsProps> = ({
     label: string;
     color: string;
   }> = [
-    { key: 'occupancyGrid', label: 'Occupancy Grid', color: '#808080' },
-    { key: 'robotPose', label: 'Robot Pose', color: '#3b82f6' },
-    { key: 'robotTrail', label: 'Robot Trail', color: '#3b82f6' },
-    { key: 'semanticObjects', label: 'Semantic Objects', color: '#ef4444' },
-    { key: 'frontiers', label: 'Frontiers', color: '#fbbf24' },
-    { key: 'path', label: 'Navigation Path', color: '#10b981' },
-  ];
+      { key: 'occupancyGrid', label: 'Occupancy Grid', color: '#808080' },
+      { key: 'robotPose', label: 'Robot Pose', color: '#3b82f6' },
+      { key: 'robotTrail', label: 'Robot Trail', color: '#3b82f6' },
+      { key: 'semanticObjects', label: 'Semantic Objects', color: '#ef4444' },
+      { key: 'frontiers', label: 'Frontiers', color: '#fbbf24' },
+      { key: 'path', label: 'Navigation Path', color: '#10b981' },
+    ];
 
   return (
     <div

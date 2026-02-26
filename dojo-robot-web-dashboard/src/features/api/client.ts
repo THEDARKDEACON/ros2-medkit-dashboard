@@ -8,13 +8,14 @@ import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import { ApiError, NetworkError } from './errors';
 import { generateRequestId, formatRequestLog, formatErrorLog } from './utils';
 import { setupSessionLogging } from './sessionLogger';
+import { useConnectionStore } from '../stores/connectionStore';
 
 /**
  * Create and configure Axios instance
  */
 const createApiClient = (): AxiosInstance => {
   const client = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1',
+    baseURL: import.meta.env.VITE_API_URL || '/api/v1',
     timeout: 10000, // 10 seconds
     headers: {
       'Content-Type': 'application/json',
@@ -56,10 +57,28 @@ const createApiClient = (): AxiosInstance => {
    */
   client.interceptors.response.use(
     (response) => {
-      // Success response - return as is
+      // Success response - update connection status
+      try {
+        const store = useConnectionStore.getState();
+        if (store.apiStatus !== 'connected') {
+          store.setAPIStatus('connected');
+        }
+      } catch {
+        // Store may not be initialized yet
+      }
       return response;
     },
     async (error: AxiosError) => {
+      // Update connection status on failure
+      try {
+        const store = useConnectionStore.getState();
+        if (error.code === 'ECONNABORTED' || !error.response) {
+          store.setAPIStatus('disconnected');
+        }
+      } catch {
+        // Store may not be initialized yet
+      }
+
       // Log error in development
       if (import.meta.env.DEV) {
         console.error(

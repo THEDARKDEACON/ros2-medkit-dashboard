@@ -6,7 +6,7 @@ import { EmptyState, EmptyErrorState } from '../common/EmptyState';
 import { VirtualizedList } from '../common/VirtualizedList';
 import { ComponentSearch } from './ComponentSearch';
 import { filterComponents, highlightMatches } from '../../utils/filterComponents';
-import type { Component } from '../../types/api';
+import type { Area, Component } from '../../types/api';
 
 interface ComponentTreeProps {
   /**
@@ -33,9 +33,20 @@ export function ComponentTree({
   showStatus = true,
   showSearch = true,
 }: ComponentTreeProps) {
-  const { data: areas, isLoading: areasLoading, error: areasError } = useAreas();
-  const { data: components, isLoading: componentsLoading, error: componentsError } = useComponents();
-  
+  const { data: rawAreas, isLoading: areasLoading, error: areasError } = useAreas();
+  const { data: rawComponents, isLoading: componentsLoading, error: componentsError } = useComponents();
+
+  // Ensure areas/components are always arrays (API may return { items: [...] } or raw array)
+  const areas = useMemo(() => {
+    if (!rawAreas) return [];
+    return Array.isArray(rawAreas) ? rawAreas : (rawAreas as any).items || [];
+  }, [rawAreas]);
+
+  const components = useMemo(() => {
+    if (!rawComponents) return [];
+    return Array.isArray(rawComponents) ? rawComponents : (rawComponents as any).items || [];
+  }, [rawComponents]);
+
   const [expandedAreas, setExpandedAreas] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -90,12 +101,13 @@ export function ComponentTree({
     );
   }
 
-  // Group components by area
+  // Group components by area - use x-medkit namespace or derive from component id
   const componentsByArea = filteredComponents.reduce((acc, component) => {
-    if (!acc[component.areaId]) {
-      acc[component.areaId] = [];
+    const areaId = component.areaId || component['x-medkit']?.ros2?.namespace?.replace(/^\//, '') || component.id;
+    if (!acc[areaId]) {
+      acc[areaId] = [];
     }
-    acc[component.areaId].push(component);
+    acc[areaId].push(component);
     return acc;
   }, {} as Record<string, Component[]>);
 
@@ -105,7 +117,8 @@ export function ComponentTree({
       // Expand all areas that have matching components
       const areasWithMatches = new Set<string>();
       filteredComponents.forEach((component) => {
-        areasWithMatches.add(component.areaId);
+        const areaId = component.areaId || component['x-medkit']?.ros2?.namespace?.replace(/^\//, '') || component.id;
+        areasWithMatches.add(areaId);
       });
       setExpandedAreas(areasWithMatches);
     }
@@ -142,189 +155,187 @@ export function ComponentTree({
 
       {/* Component tree */}
       <div className="space-y-1" role="tree" aria-label="Component hierarchy">
-      {areas.map((area) => {
-        const isExpanded = expandedAreas.has(area.id);
-        const areaComponents = componentsByArea[area.id] || [];
-        const actualCount = areaComponents.length;
+        {areas.map((area: Area) => {
+          const isExpanded = expandedAreas.has(area.id);
+          const areaComponents = componentsByArea[area.id] || [];
+          const actualCount = areaComponents.length;
 
-        return (
-          <div key={area.id} className="rounded-md">
-            {/* Area header */}
-            <button
-              onClick={() => toggleArea(area.id)}
-              className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/50 rounded-md transition-colors group"
-              role="treeitem"
-              aria-expanded={isExpanded}
-              aria-label={`${area.name} area with ${actualCount} components`}
-            >
-              {/* Expand/collapse icon */}
-              {isExpanded ? (
-                <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
-              ) : (
-                <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
-              )}
-
-              {/* Area icon */}
-              <Box className="h-4 w-4 text-primary flex-shrink-0" aria-hidden="true" />
-
-              {/* Area name */}
-              <span className="font-medium text-sm flex-1 truncate">
-                {area.name}
-              </span>
-
-              {/* Component count badge */}
-              <span
-                className="px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-full flex-shrink-0"
-                aria-label={`${actualCount} components`}
+          return (
+            <div key={area.id} className="rounded-md">
+              {/* Area header */}
+              <button
+                onClick={() => toggleArea(area.id)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/50 rounded-md transition-colors group"
+                role="treeitem"
+                aria-expanded={isExpanded}
+                aria-label={`${area.name} area with ${actualCount} components`}
               >
-                {actualCount}
-              </span>
-            </button>
-
-            {/* Area components */}
-            {isExpanded && (
-              <div
-                className="ml-6 mt-1 border-l-2 border-muted pl-2"
-                role="group"
-                aria-label={`Components in ${area.name}`}
-              >
-                {areaComponents.length === 0 ? (
-                  <div className="px-3 py-2 text-sm text-muted-foreground">
-                    No components in this area
-                  </div>
-                ) : areaComponents.length > 20 ? (
-                  // Use virtualization for large lists (>20 items)
-                  <VirtualizedList
-                    items={areaComponents}
-                    itemHeight={40}
-                    height={Math.min(400, areaComponents.length * 40)}
-                    renderItem={(component, index, style) => {
-                      const isSelected = component.id === selectedComponentId;
-                      return (
-                        <button
-                          key={component.id}
-                          onClick={() => handleComponentClick(component)}
-                          style={style}
-                          className={`w-full flex items-center gap-2 px-3 py-2 text-left rounded-md transition-colors ${
-                            isSelected
-                              ? 'bg-primary/10 text-primary'
-                              : 'hover:bg-muted/50 text-foreground'
-                          }`}
-                          role="treeitem"
-                          aria-selected={isSelected}
-                          aria-label={`${component.name} component, status: ${component.status}`}
-                        >
-                          {/* Component icon with status */}
-                          <div className="relative flex-shrink-0">
-                            <Activity className="h-4 w-4" aria-hidden="true" />
-                            {showStatus && component.status === 'error' && (
-                              <AlertCircle
-                                className="h-2 w-2 text-red-500 absolute -top-0.5 -right-0.5"
-                                aria-hidden="true"
-                              />
-                            )}
-                          </div>
-
-                          {/* Component name */}
-                          <span className="text-sm flex-1 truncate">
-                            {renderHighlightedText(component.name)}
-                          </span>
-
-                          {/* Status indicator */}
-                          {showStatus && (
-                            <div className="flex-shrink-0">
-                              {component.status === 'active' && (
-                                <div
-                                  className="h-2 w-2 rounded-full bg-green-500"
-                                  aria-label="Active"
-                                />
-                              )}
-                              {component.status === 'inactive' && (
-                                <div
-                                  className="h-2 w-2 rounded-full bg-gray-400"
-                                  aria-label="Inactive"
-                                />
-                              )}
-                              {component.status === 'error' && (
-                                <div
-                                  className="h-2 w-2 rounded-full bg-red-500"
-                                  aria-label="Error"
-                                />
-                              )}
-                            </div>
-                          )}
-                        </button>
-                      );
-                    }}
-                  />
+                {/* Expand/collapse icon */}
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
                 ) : (
-                  // Regular rendering for small lists
-                  <div className="space-y-1">
-                    {areaComponents.map((component) => {
-                      const isSelected = component.id === selectedComponentId;
+                  <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
+                )}
 
-                      return (
-                        <button
-                          key={component.id}
-                          onClick={() => handleComponentClick(component)}
-                          className={`w-full flex items-center gap-2 px-3 py-2 text-left rounded-md transition-colors ${
-                            isSelected
+                {/* Area icon */}
+                <Box className="h-4 w-4 text-primary flex-shrink-0" aria-hidden="true" />
+
+                {/* Area name */}
+                <span className="font-medium text-sm flex-1 truncate">
+                  {area.name}
+                </span>
+
+                {/* Component count badge */}
+                <span
+                  className="px-2 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-full flex-shrink-0"
+                  aria-label={`${actualCount} components`}
+                >
+                  {actualCount}
+                </span>
+              </button>
+
+              {/* Area components */}
+              {isExpanded && (
+                <div
+                  className="ml-6 mt-1 border-l-2 border-muted pl-2"
+                  role="group"
+                  aria-label={`Components in ${area.name}`}
+                >
+                  {areaComponents.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">
+                      No components in this area
+                    </div>
+                  ) : areaComponents.length > 20 ? (
+                    // Use virtualization for large lists (>20 items)
+                    <VirtualizedList
+                      items={areaComponents}
+                      itemHeight={40}
+                      height={Math.min(400, areaComponents.length * 40)}
+                      renderItem={(component, _index, style) => {
+                        const isSelected = component.id === selectedComponentId;
+                        return (
+                          <button
+                            key={component.id}
+                            onClick={() => handleComponentClick(component)}
+                            style={style}
+                            className={`w-full flex items-center gap-2 px-3 py-2 text-left rounded-md transition-colors ${isSelected
                               ? 'bg-primary/10 text-primary'
                               : 'hover:bg-muted/50 text-foreground'
-                          }`}
-                          role="treeitem"
-                          aria-selected={isSelected}
-                          aria-label={`${component.name} component, status: ${component.status}`}
-                        >
-                          {/* Component icon with status */}
-                          <div className="relative flex-shrink-0">
-                            <Activity className="h-4 w-4" aria-hidden="true" />
-                            {showStatus && component.status === 'error' && (
-                              <AlertCircle
-                                className="h-2 w-2 text-red-500 absolute -top-0.5 -right-0.5"
-                                aria-hidden="true"
-                              />
-                            )}
-                          </div>
-
-                          {/* Component name */}
-                          <span className="text-sm flex-1 truncate">
-                            {renderHighlightedText(component.name)}
-                          </span>
-
-                          {/* Status indicator */}
-                          {showStatus && (
-                            <div className="flex-shrink-0">
-                              {component.status === 'active' && (
-                                <div
-                                  className="h-2 w-2 rounded-full bg-green-500"
-                                  aria-label="Active"
-                                />
-                              )}
-                              {component.status === 'inactive' && (
-                                <div
-                                  className="h-2 w-2 rounded-full bg-gray-400"
-                                  aria-label="Inactive"
-                                />
-                              )}
-                              {component.status === 'error' && (
-                                <div
-                                  className="h-2 w-2 rounded-full bg-red-500"
-                                  aria-label="Error"
+                              }`}
+                            role="treeitem"
+                            aria-selected={isSelected}
+                            aria-label={`${component.name} component, status: ${component.status}`}
+                          >
+                            {/* Component icon with status */}
+                            <div className="relative flex-shrink-0">
+                              <Activity className="h-4 w-4" aria-hidden="true" />
+                              {showStatus && component.status === 'error' && (
+                                <AlertCircle
+                                  className="h-2 w-2 text-red-500 absolute -top-0.5 -right-0.5"
+                                  aria-hidden="true"
                                 />
                               )}
                             </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })}
+
+                            {/* Component name */}
+                            <span className="text-sm flex-1 truncate">
+                              {renderHighlightedText(component.name)}
+                            </span>
+
+                            {/* Status indicator */}
+                            {showStatus && (
+                              <div className="flex-shrink-0">
+                                {component.status === 'active' && (
+                                  <div
+                                    className="h-2 w-2 rounded-full bg-green-500"
+                                    aria-label="Active"
+                                  />
+                                )}
+                                {component.status === 'inactive' && (
+                                  <div
+                                    className="h-2 w-2 rounded-full bg-gray-400"
+                                    aria-label="Inactive"
+                                  />
+                                )}
+                                {component.status === 'error' && (
+                                  <div
+                                    className="h-2 w-2 rounded-full bg-red-500"
+                                    aria-label="Error"
+                                  />
+                                )}
+                              </div>
+                            )}
+                          </button>
+                        );
+                      }}
+                    />
+                  ) : (
+                    // Regular rendering for small lists
+                    <div className="space-y-1">
+                      {areaComponents.map((component) => {
+                        const isSelected = component.id === selectedComponentId;
+
+                        return (
+                          <button
+                            key={component.id}
+                            onClick={() => handleComponentClick(component)}
+                            className={`w-full flex items-center gap-2 px-3 py-2 text-left rounded-md transition-colors ${isSelected
+                              ? 'bg-primary/10 text-primary'
+                              : 'hover:bg-muted/50 text-foreground'
+                              }`}
+                            role="treeitem"
+                            aria-selected={isSelected}
+                            aria-label={`${component.name} component, status: ${component.status}`}
+                          >
+                            {/* Component icon with status */}
+                            <div className="relative flex-shrink-0">
+                              <Activity className="h-4 w-4" aria-hidden="true" />
+                              {showStatus && component.status === 'error' && (
+                                <AlertCircle
+                                  className="h-2 w-2 text-red-500 absolute -top-0.5 -right-0.5"
+                                  aria-hidden="true"
+                                />
+                              )}
+                            </div>
+
+                            {/* Component name */}
+                            <span className="text-sm flex-1 truncate">
+                              {renderHighlightedText(component.name)}
+                            </span>
+
+                            {/* Status indicator */}
+                            {showStatus && (
+                              <div className="flex-shrink-0">
+                                {component.status === 'active' && (
+                                  <div
+                                    className="h-2 w-2 rounded-full bg-green-500"
+                                    aria-label="Active"
+                                  />
+                                )}
+                                {component.status === 'inactive' && (
+                                  <div
+                                    className="h-2 w-2 rounded-full bg-gray-400"
+                                    aria-label="Inactive"
+                                  />
+                                )}
+                                {component.status === 'error' && (
+                                  <div
+                                    className="h-2 w-2 rounded-full bg-red-500"
+                                    aria-label="Error"
+                                  />
+                                )}
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

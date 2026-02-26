@@ -8,10 +8,6 @@ import type {
   PartialDashboardConfiguration,
   ConfigurationParseResult,
   ConfigurationValidationError,
-  DashboardSettings,
-  DashboardLayout,
-  RobotInstance,
-  PanelConfig,
 } from '@/types/configuration';
 
 const CURRENT_VERSION = '1.0.0';
@@ -474,8 +470,8 @@ export function mergeConfiguration(
   // Filter out undefined values from partial settings
   const filteredSettings = partial.settings
     ? Object.fromEntries(
-        Object.entries(partial.settings).filter(([_, value]) => value !== undefined)
-      )
+      Object.entries(partial.settings).filter(([_, value]) => value !== undefined)
+    )
     : undefined;
 
   return {

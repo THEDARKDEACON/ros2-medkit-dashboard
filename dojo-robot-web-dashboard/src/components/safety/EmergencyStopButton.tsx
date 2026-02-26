@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertOctagon, Loader2, X } from 'lucide-react';
+import { AlertOctagon, Loader2 } from 'lucide-react';
 import { useTriggerEmergencyStop } from '@/features/api/hooks';
 
 /**
@@ -60,11 +60,10 @@ export function EmergencyStopButton({
         <button
           onClick={() => setShowConfirmDialog(true)}
           disabled={isActive || triggerEmergencyStop.isPending}
-          className={`${config.button} rounded-full ${
-            isActive
+          className={`${config.button} rounded-full ${isActive
               ? 'bg-red-500 hover:bg-red-600 cursor-not-allowed opacity-50'
               : 'bg-red-500 hover:bg-red-600 active:scale-95'
-          } transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center`}
+            } transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center`}
           aria-label="Emergency Stop"
           title={isActive ? 'Emergency stop is active' : 'Activate emergency stop'}
         >
@@ -74,7 +73,7 @@ export function EmergencyStopButton({
             <AlertOctagon className={`${config.icon} text-white`} />
           )}
         </button>
-        
+
         {isActive && (
           <div className="flex items-center gap-1">
             <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />

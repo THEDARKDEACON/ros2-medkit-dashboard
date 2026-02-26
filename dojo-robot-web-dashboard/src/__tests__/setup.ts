@@ -1,14 +1,14 @@
 import '@testing-library/jest-dom';
 
 // Mock ResizeObserver for React Three Fiber
-global.ResizeObserver = class ResizeObserver {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+globalThis.ResizeObserver = class ResizeObserver {
+  observe() { }
+  unobserve() { }
+  disconnect() { }
 };
 
 // Mock WebGL context for Three.js
-HTMLCanvasElement.prototype.getContext = function (contextId: string) {
+HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, contextId: string) {
   if (contextId === 'webgl' || contextId === 'webgl2') {
     return {
       canvas: this,

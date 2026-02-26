@@ -32,17 +32,17 @@ describe('Property 47: Keyboard Shortcut Execution', () => {
   it('Feature: dojo-robot-web-dashboard, Property 47: For any defined keyboard shortcut, pressing that key combination should trigger the associated action', () => {
     // Define keyboard shortcuts to test
     const shortcuts = [
-      { key: 'h', ctrl: true, expectedPath: '/', description: 'Home' },
-      { key: 'c', ctrl: true, expectedPath: '/components', description: 'Components' },
-      { key: 't', ctrl: true, expectedPath: '/topics', description: 'Topics' },
-      { key: 'o', ctrl: true, expectedPath: '/operations', description: 'Operations' },
-      { key: 'p', ctrl: true, expectedPath: '/parameters', description: 'Parameters' },
-      { key: 'f', ctrl: true, expectedPath: '/faults', description: 'Faults' },
-      { key: 'v', ctrl: true, expectedPath: '/visualizations', description: 'Visualizations' },
-      { key: 's', ctrl: true, expectedPath: '/settings', description: 'Settings' },
+      { key: 'h', ctrl: true },
+      { key: 'c', ctrl: true },
+      { key: 't', ctrl: true },
+      { key: 'o', ctrl: true },
+      { key: 'p', ctrl: true },
+      { key: 'f', ctrl: true },
+      { key: 'v', ctrl: true },
+      { key: 's', ctrl: true },
     ];
 
-    shortcuts.forEach(({ key, ctrl, expectedPath, description }) => {
+    shortcuts.forEach(({ key, ctrl }) => {
       // Render component with router
       const { unmount } = render(
         <BrowserRouter>

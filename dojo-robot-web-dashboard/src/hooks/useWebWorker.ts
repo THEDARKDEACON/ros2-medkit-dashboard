@@ -27,7 +27,7 @@ import type { WorkerMessage, WorkerResponse } from '../workers/dataProcessor.wor
  */
 export function useWebWorker<TRequest = any, TResponse = any>(
   workerFactory: () => Worker
-): [(message: Omit<WorkerMessage, 'requestId'>) => Promise<TResponse>, () => void] {
+): [(message: TRequest) => Promise<TResponse>, () => void] {
   const workerRef = useRef<Worker | null>(null);
   const pendingRequests = useRef<Map<string, (value: TResponse) => void>>(new Map());
   const rejections = useRef<Map<string, (reason: any) => void>>(new Map());
@@ -81,7 +81,7 @@ export function useWebWorker<TRequest = any, TResponse = any>(
 
   // Post message to worker
   const postMessage = useCallback(
-    (message: Omit<WorkerMessage, 'requestId'>): Promise<TResponse> => {
+    (message: TRequest): Promise<TResponse> => {
       return new Promise((resolve, reject) => {
         if (!workerRef.current) {
           reject(new Error('Worker not initialized'));
@@ -93,7 +93,7 @@ export function useWebWorker<TRequest = any, TResponse = any>(
         rejections.current.set(requestId, reject);
 
         const fullMessage: WorkerMessage = {
-          ...message,
+          ...(message as any),
           requestId,
         } as WorkerMessage;
 

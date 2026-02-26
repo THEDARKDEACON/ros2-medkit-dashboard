@@ -17,23 +17,6 @@ interface TopicDataExport {
   data: unknown[];
 }
 
-interface FaultHistoryExport {
-  metadata: ExportMetadata;
-  faults: Array<{
-    code: string;
-    message: string;
-    severity: string;
-    componentId: string;
-    timestamp: string;
-    [key: string]: unknown;
-  }>;
-}
-
-interface ParameterExport {
-  metadata: ExportMetadata;
-  parameters: Record<string, unknown>;
-}
-
 /**
  * Generate export metadata
  */
@@ -84,54 +67,54 @@ export function exportToCSV(
   }>
 ): string {
   const metadata = generateMetadata('fault-history');
-  
+
   // Build CSV with metadata header
   const lines: string[] = [];
-  
+
   // Add metadata as comments
   lines.push(`# Exported By: ${metadata.exportedBy}`);
   lines.push(`# Export Timestamp: ${metadata.timestamp}`);
   lines.push(`# Version: ${metadata.version}`);
   lines.push(`# Source: ${metadata.source}`);
   lines.push('');
-  
+
   // Add CSV headers
   if (faults.length === 0) {
     lines.push('code,message,severity,componentId,timestamp');
     return lines.join('\n');
   }
-  
+
   // Get all unique keys from all faults
   const allKeys = new Set<string>();
   faults.forEach(fault => {
     Object.keys(fault).forEach(key => allKeys.add(key));
   });
-  
+
   const headers = Array.from(allKeys);
   lines.push(headers.join(','));
-  
+
   // Add data rows
   faults.forEach(fault => {
     const row = headers.map(header => {
       const value = fault[header];
-      
+
       // Handle different value types
       if (value === null || value === undefined) {
         return '';
       }
-      
+
       // Escape strings containing commas, quotes, or special characters
       const stringValue = String(value);
       if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n') || stringValue.startsWith('#')) {
         return `"${stringValue.replace(/"/g, '""')}"`;
       }
-      
+
       return stringValue;
     });
-    
+
     lines.push(row.join(','));
   });
-  
+
   return lines.join('\n');
 }
 
@@ -146,9 +129,9 @@ export function exportToYAML(
   namespace?: string
 ): string {
   const metadata = generateMetadata(namespace ? `parameters:${namespace}` : 'parameters');
-  
+
   const lines: string[] = [];
-  
+
   // Add metadata section
   lines.push('# Metadata');
   lines.push(`exported_by: "${metadata.exportedBy}"`);
@@ -156,16 +139,16 @@ export function exportToYAML(
   lines.push(`version: "${metadata.version}"`);
   lines.push(`source: "${metadata.source}"`);
   lines.push('');
-  
+
   // Add parameters section
   lines.push('# Parameters');
   lines.push('parameters:');
-  
+
   // Convert parameters to YAML format
   Object.entries(parameters).forEach(([key, value]) => {
     lines.push(`  ${key}: ${formatYAMLValue(value, 2)}`);
   });
-  
+
   return lines.join('\n');
 }
 
@@ -174,19 +157,19 @@ export function exportToYAML(
  */
 function formatYAMLValue(value: unknown, indent: number): string {
   const indentStr = ' '.repeat(indent);
-  
+
   if (value === null || value === undefined) {
     return 'null';
   }
-  
+
   if (typeof value === 'boolean') {
     return String(value);
   }
-  
+
   if (typeof value === 'number') {
     return String(value);
   }
-  
+
   if (typeof value === 'string') {
     // Escape strings that need quotes
     if (value.includes('\n') || value.includes(':') || value.includes('#')) {
@@ -194,28 +177,28 @@ function formatYAMLValue(value: unknown, indent: number): string {
     }
     return `"${value}"`;
   }
-  
+
   if (Array.isArray(value)) {
     if (value.length === 0) {
       return '[]';
     }
-    
+
     const items = value.map(item => `\n${indentStr}- ${formatYAMLValue(item, indent + 2)}`);
     return items.join('');
   }
-  
+
   if (typeof value === 'object') {
     const entries = Object.entries(value);
     if (entries.length === 0) {
       return '{}';
     }
-    
+
     const items = entries.map(
       ([k, v]) => `\n${indentStr}${k}: ${formatYAMLValue(v, indent + 2)}`
     );
     return items.join('');
   }
-  
+
   return String(value);
 }
 
@@ -232,15 +215,15 @@ export function downloadFile(
 ): void {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
-  
+
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
   link.style.display = 'none';
-  
+
   document.body.appendChild(link);
   link.click();
-  
+
   // Cleanup
   document.body.removeChild(link);
   URL.revokeObjectURL(url);

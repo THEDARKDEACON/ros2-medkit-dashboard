@@ -4,7 +4,8 @@ import { FrameRateLimiter, CircularBuffer } from '../../utils/performance';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useDebounce } from '../../hooks/useDebounce';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
-import React, { ReactNode, useState } from 'react';
+import { useState } from 'react';
+import type { ReactNode } from 'react';
 
 /**
  * Property-Based Tests for Performance Optimization
@@ -31,13 +32,13 @@ describe('Performance Property Tests', () => {
           (targetFPS, timestamps) => {
             // Sort timestamps to ensure they're in ascending order
             const sortedTimestamps = [...timestamps].sort((a, b) => a - b);
-            
+
             const limiter = new FrameRateLimiter(targetFPS);
             const expectedInterval = 1000 / targetFPS;
-            
+
             let lastRenderTime = 0;
             let renderCount = 0;
-            
+
             // Simulate frame requests
             for (const timestamp of sortedTimestamps) {
               if (limiter.shouldRender(timestamp)) {
@@ -50,7 +51,7 @@ describe('Performance Property Tests', () => {
                 renderCount++;
               }
             }
-            
+
             // For 30 FPS specifically, verify it doesn't exceed the limit
             if (targetFPS === 30 && sortedTimestamps.length > 1) {
               const totalTime = sortedTimestamps[sortedTimestamps.length - 1] - sortedTimestamps[0];
@@ -67,12 +68,11 @@ describe('Performance Property Tests', () => {
 
     it('should enforce 30 FPS limit for real-time visualizations', () => {
       const limiter = new FrameRateLimiter(30);
-      const frameInterval = 1000 / 30; // ~33.33ms
-      
+
       let currentTime = 0;
       let renderCount = 0;
       const duration = 1000; // 1 second
-      
+
       // Simulate 60 FPS frame requests (every ~16.67ms)
       while (currentTime < duration) {
         if (limiter.shouldRender(currentTime)) {
@@ -80,7 +80,7 @@ describe('Performance Property Tests', () => {
         }
         currentTime += 16.67; // 60 FPS interval
       }
-      
+
       // Should render approximately 30 frames in 1 second
       expect(renderCount).toBeLessThanOrEqual(31); // Allow 1 frame tolerance
       expect(renderCount).toBeGreaterThanOrEqual(29);
@@ -109,13 +109,13 @@ describe('Performance Property Tests', () => {
           fc.integer({ min: 250, max: 350 }), // Delay within tolerance
           (values, delay) => {
             const { result } = renderHook(() => useDebounce(values[0], delay));
-            
+
             // Initial value should be the first value
             expect(result.current).toBe(values[0]);
-            
+
             // Fast forward time
             vi.advanceTimersByTime(delay);
-            
+
             // Value should still be debounced
             expect(result.current).toBe(values[0]);
           }
@@ -274,10 +274,10 @@ describe('Performance Property Tests', () => {
 
             // Fast forward past 5 minutes
             vi.advanceTimersByTime(2 * 60 * 1000);
-            
+
             // Invalidate to trigger refetch
             queryClient.invalidateQueries({ queryKey: ['static-data'] });
-            
+
             // Should refetch after stale time
             await waitFor(() => {
               expect(queryFn).toHaveBeenCalledTimes(2);
@@ -291,7 +291,7 @@ describe('Performance Property Tests', () => {
     it('should use cached data within 5 minute window', () => {
       const fiveMinutes = 5 * 60 * 1000;
       const queryFn = vi.fn().mockResolvedValue({ data: 'cached' });
-      
+
       const queryClient = new QueryClient({
         defaultOptions: {
           queries: {
@@ -344,14 +344,14 @@ describe('Performance Property Tests', () => {
           ),
           (dataPoints) => {
             const buffer = new CircularBuffer<typeof dataPoints[0]>(60);
-            
+
             // Add all data points
             dataPoints.forEach((point) => buffer.push(point));
-            
+
             // Buffer should contain at most 60 items
             const bufferedData = buffer.toArray();
             expect(bufferedData.length).toBeLessThanOrEqual(60);
-            
+
             // If we added more than 60 points, verify we kept the most recent
             if (dataPoints.length > 60) {
               expect(bufferedData.length).toBe(60);
@@ -370,18 +370,18 @@ describe('Performance Property Tests', () => {
 
     it('should discard oldest data when buffer is full', () => {
       const buffer = new CircularBuffer<number>(5);
-      
+
       // Fill buffer
       for (let i = 1; i <= 5; i++) {
         buffer.push(i);
       }
-      
+
       expect(buffer.toArray()).toEqual([1, 2, 3, 4, 5]);
-      
+
       // Add more items (should overwrite oldest)
       buffer.push(6);
       expect(buffer.toArray()).toEqual([2, 3, 4, 5, 6]);
-      
+
       buffer.push(7);
       expect(buffer.toArray()).toEqual([3, 4, 5, 6, 7]);
     });

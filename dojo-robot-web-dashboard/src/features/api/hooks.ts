@@ -6,7 +6,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './client';
 import { generateRequestId } from './utils';
-import type { Area, Component, Topic, Operation, Execution, Parameter, Fault, FaultSnapshot } from '../../types/api';
+import type { Area, Component, DataItem, ApiListResponse, Topic, Operation, Execution, Parameter, Fault, FaultSnapshot } from '../../types/api';
 
 /**
  * Fetch all areas
@@ -28,7 +28,7 @@ import type { Area, Component, Topic, Operation, Execution, Parameter, Fault, Fa
 export const useAreas = () => {
   return useQuery({
     queryKey: ['areas'],
-    queryFn: () => apiClient.get<Area[]>('/areas').then((res) => res.data),
+    queryFn: () => apiClient.get<ApiListResponse<Area>>('/areas').then((res) => res.data.items || res.data as any),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
@@ -55,7 +55,7 @@ export const useComponents = () => {
   return useQuery({
     queryKey: ['components'],
     queryFn: () =>
-      apiClient.get<Component[]>('/components').then((res) => res.data),
+      apiClient.get<ApiListResponse<Component>>('/components').then((res) => res.data.items || res.data as any),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
@@ -85,8 +85,8 @@ export const useAreaComponents = (areaId: string) => {
     queryKey: ['areas', areaId, 'components'],
     queryFn: () =>
       apiClient
-        .get<Component[]>(`/areas/${areaId}/components`)
-        .then((res) => res.data),
+        .get<ApiListResponse<Component>>(`/areas/${areaId}/components`)
+        .then((res) => res.data.items || res.data as any),
     enabled: !!areaId,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
@@ -117,8 +117,8 @@ export const useComponentTopicData = (componentId: string) => {
     queryKey: ['components', componentId, 'data'],
     queryFn: () =>
       apiClient
-        .get<Record<string, unknown>>(`/components/${componentId}/data`)
-        .then((res) => res.data),
+        .get<ApiListResponse<DataItem>>(`/components/${componentId}/data`)
+        .then((res) => res.data.items || res.data as any),
     enabled: !!componentId,
     staleTime: 0, // Always consider stale for real-time data
     gcTime: 1 * 60 * 1000, // 1 minute
@@ -150,22 +150,20 @@ export const useTopicList = (componentId: string) => {
     queryKey: ['components', componentId, 'topics'],
     queryFn: async () => {
       // Fetch all topic data for the component
-      const response = await apiClient.get<Record<string, unknown>>(
+      const response = await apiClient.get<ApiListResponse<DataItem>>(
         `/components/${componentId}/data`
       );
-      
-      // Transform the data object into an array of Topic objects
-      const topicData = response.data;
-      const topics: Topic[] = Object.entries(topicData).map(([name, data]) => ({
-        name,
-        messageType: typeof data === 'object' && data !== null 
-          ? (data as any)._type || 'unknown'
-          : typeof data,
+
+      // Transform the data items into an array of Topic objects
+      const dataItems = response.data.items || [];
+      const topics: Topic[] = dataItems.map((item) => ({
+        name: item.name || item.id,
+        messageType: item['x-medkit']?.ros2?.type || 'unknown',
         publishRate: 0, // Will be updated by real-time monitoring
         lastUpdate: new Date().toISOString(),
-        data,
+        data: item,
       }));
-      
+
       return topics;
     },
     enabled: !!componentId,
@@ -371,8 +369,8 @@ export const useOperations = (componentId: string) => {
     queryKey: ['components', componentId, 'operations'],
     queryFn: () =>
       apiClient
-        .get<Operation[]>(`/components/${componentId}/operations`)
-        .then((res) => res.data),
+        .get<ApiListResponse<Operation>>(`/components/${componentId}/operations`)
+        .then((res) => res.data.items || res.data as any),
     enabled: !!componentId,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
@@ -678,10 +676,10 @@ export const useCancelExecution = () => {
         (old: Execution | undefined) =>
           old
             ? {
-                ...old,
-                status: 'cancelled' as const,
-                endTime: new Date().toISOString(),
-              }
+              ...old,
+              status: 'cancelled' as const,
+              endTime: new Date().toISOString(),
+            }
             : undefined
       );
 
@@ -744,8 +742,8 @@ export const useParameters = (componentId: string) => {
     queryKey: ['components', componentId, 'parameters'],
     queryFn: () =>
       apiClient
-        .get<Parameter[]>(`/components/${componentId}/configurations`)
-        .then((res) => res.data),
+        .get<ApiListResponse<Parameter>>(`/components/${componentId}/configurations`)
+        .then((res) => res.data.items || res.data as any),
     enabled: !!componentId,
     staleTime: 30 * 1000, // 30 seconds
     gcTime: 5 * 60 * 1000, // 5 minutes
@@ -995,7 +993,7 @@ export const useFaults = (options?: {
   return useQuery({
     queryKey: ['faults'],
     queryFn: () =>
-      apiClient.get<Fault[]>('/faults').then((res) => res.data),
+      apiClient.get<ApiListResponse<Fault>>('/faults').then((res) => res.data.items || res.data as any),
     staleTime: 0, // Always consider stale for real-time data
     gcTime: 1 * 60 * 1000, // 1 minute
     refetchInterval: enabled ? refetchInterval : false,
@@ -1072,7 +1070,7 @@ export const useSystemHealth = (options?: { enabled?: boolean }) => {
   // Fetch all data sources with 2-second refresh
   const areasQuery = useQuery({
     queryKey: ['areas'],
-    queryFn: () => apiClient.get<Area[]>('/areas').then((res) => res.data),
+    queryFn: () => apiClient.get<ApiListResponse<Area>>('/areas').then((res) => res.data.items || res.data as any),
     staleTime: 0,
     refetchInterval: enabled ? 2000 : false,
   });
@@ -1080,20 +1078,20 @@ export const useSystemHealth = (options?: { enabled?: boolean }) => {
   const componentsQuery = useQuery({
     queryKey: ['components'],
     queryFn: () =>
-      apiClient.get<Component[]>('/components').then((res) => res.data),
+      apiClient.get<ApiListResponse<Component>>('/components').then((res) => res.data.items || res.data as any),
     staleTime: 0,
     refetchInterval: enabled ? 2000 : false,
   });
 
   const faultsQuery = useQuery({
     queryKey: ['faults'],
-    queryFn: () => apiClient.get<Fault[]>('/faults').then((res) => res.data),
+    queryFn: () => apiClient.get<ApiListResponse<Fault>>('/faults').then((res) => res.data.items || res.data as any),
     staleTime: 0,
     refetchInterval: enabled ? 2000 : false,
   });
 
   // Aggregate topic count from all components
-  const topicCount = componentsQuery.data?.reduce((total, component) => {
+  const topicCount = componentsQuery.data?.reduce((total) => {
     // Each component can have multiple topics
     // For now, we'll estimate based on component data endpoint
     return total + 1; // Simplified - in real implementation would fetch actual topic counts
@@ -1102,8 +1100,8 @@ export const useSystemHealth = (options?: { enabled?: boolean }) => {
   // Calculate metrics
   const totalAreas = areasQuery.data?.length || 0;
   const totalComponents = componentsQuery.data?.length || 0;
-  const activeComponents =
-    componentsQuery.data?.filter((c) => c.status === 'active').length || 0;
+  // Medkit API returns all active components — no 'status' field exists
+  const activeComponents = totalComponents;
   const totalTopics = topicCount;
 
   // Calculate fault counts by severity
@@ -1135,9 +1133,10 @@ export const useSystemHealth = (options?: { enabled?: boolean }) => {
     },
     isLoading:
       areasQuery.isLoading ||
-      componentsQuery.isLoading ||
-      faultsQuery.isLoading,
-    error: areasQuery.error || componentsQuery.error || faultsQuery.error,
+      componentsQuery.isLoading,
+    // Only report error if primary queries (areas/components) fail
+    // Faults endpoint may be unavailable (503) - degrade gracefully
+    error: areasQuery.error && componentsQuery.error ? areasQuery.error : null,
     refetch: () => {
       areasQuery.refetch();
       componentsQuery.refetch();
@@ -1645,15 +1644,15 @@ export const useNavigationStatus = (
       const response = await apiClient.get<Record<string, unknown>>(
         `/components/${componentId}/data`
       );
-      
+
       // Extract navigation-related data from component data
       const data = response.data;
-      
+
       // Map the raw data to NavigationStatus structure
       const status = (data.exploration_status as string) || 'idle';
       const navStatus: NavigationStatus = {
-        status: (status === 'exploring' || status === 'planning' || status === 'error') 
-          ? status 
+        status: (status === 'exploring' || status === 'planning' || status === 'error')
+          ? status
           : 'idle',
         currentGoal: data.current_goal as NavigationStatus['currentGoal'],
         plannedPath: data.planned_path as NavigationStatus['plannedPath'],
@@ -1661,7 +1660,7 @@ export const useNavigationStatus = (
         pathPlanningState: data.path_planning_state as string,
         obstacleDetected: data.obstacle_detected as boolean,
       };
-      
+
       return navStatus;
     },
     enabled: !!componentId && enabled,
@@ -1709,10 +1708,10 @@ export const useExplorationStats = (
       const response = await apiClient.get<Record<string, unknown>>(
         `/components/${componentId}/data`
       );
-      
+
       // Extract exploration statistics from component data
       const data = response.data;
-      
+
       const stats: ExplorationStats = {
         exploredArea: (data.explored_area as number) || 0,
         totalArea: (data.total_area as number) || 0,
@@ -1720,7 +1719,7 @@ export const useExplorationStats = (
         frontierClusters: data.frontier_clusters as ExplorationStats['frontierClusters'],
         estimatedTimeRemaining: data.estimated_time_remaining as number,
       };
-      
+
       return stats;
     },
     enabled: !!componentId && enabled,
@@ -1767,14 +1766,14 @@ export const useRobotVelocity = (
       const response = await apiClient.get<Record<string, unknown>>(
         `/components/${componentId}/data`
       );
-      
+
       const data = response.data;
-      
+
       const velocity: RobotVelocity = {
         linear: (data.velocity_linear as RobotVelocity['linear']) || { x: 0, y: 0, z: 0 },
         angular: (data.velocity_angular as RobotVelocity['angular']) || { x: 0, y: 0, z: 0 },
       };
-      
+
       return velocity;
     },
     enabled: !!componentId && enabled,
@@ -1821,16 +1820,16 @@ export const useBatteryStatus = (
       const response = await apiClient.get<Record<string, unknown>>(
         `/components/${componentId}/data`
       );
-      
+
       const data = response.data;
-      
+
       const battery: BatteryStatus = {
         level: (data.battery_level as number) || 0,
         voltage: (data.battery_voltage as number) || 0,
         current: (data.battery_current as number) || 0,
         charging: (data.battery_charging as boolean) || false,
       };
-      
+
       return battery;
     },
     enabled: !!componentId && enabled,
@@ -1944,9 +1943,9 @@ export const useSafetyStatus = (
       const response = await apiClient.get<Record<string, unknown>>(
         `/components/${componentId}/data`
       );
-      
+
       const data = response.data;
-      
+
       const safetyStatus: SafetyStatus = {
         emergencyStopActive: (data.emergency_stop_active as boolean) || false,
         collisionDetected: (data.collision_detected as boolean) || false,
@@ -1955,7 +1954,7 @@ export const useSafetyStatus = (
         systemHealth: (data.system_health as SafetyStatus['systemHealth']) || 'healthy',
         lastSafetyCheck: (data.last_safety_check as string) || new Date().toISOString(),
       };
-      
+
       return safetyStatus;
     },
     enabled: !!componentId && enabled,
@@ -2003,9 +2002,9 @@ export const useBehaviorTree = (
       const response = await apiClient.get<Record<string, unknown>>(
         `/components/${componentId}/data`
       );
-      
+
       const data = response.data;
-      
+
       const behaviorTree: BehaviorTreeState = {
         rootNode: (data.behavior_tree_root as BehaviorTreeNode) || {
           id: 'root',
@@ -2017,7 +2016,7 @@ export const useBehaviorTree = (
         activeBehaviors: (data.active_behaviors as BehaviorTreeState['activeBehaviors']) || [],
         lastUpdate: (data.behavior_tree_last_update as string) || new Date().toISOString(),
       };
-      
+
       return behaviorTree;
     },
     enabled: !!componentId && enabled,
@@ -2067,10 +2066,10 @@ export const useSafetyEvents = (
       const response = await apiClient.get<Record<string, unknown>>(
         `/components/${componentId}/data`
       );
-      
+
       const data = response.data;
       const events = (data.safety_events as SafetyEvent[]) || [];
-      
+
       // Return the most recent events up to the limit
       return events.slice(0, limit);
     },
@@ -2119,9 +2118,9 @@ export const useSafetyMetrics = (
       const response = await apiClient.get<Record<string, unknown>>(
         `/components/${componentId}/data`
       );
-      
+
       const data = response.data;
-      
+
       const metrics: SafetyMetrics = {
         totalEvents: (data.safety_total_events as number) || 0,
         emergencyStops: (data.safety_emergency_stops as number) || 0,
@@ -2130,7 +2129,7 @@ export const useSafetyMetrics = (
         averageResponseTime: (data.safety_avg_response_time as number) || 0,
         systemUptime: (data.safety_system_uptime as number) || 0,
       };
-      
+
       return metrics;
     },
     enabled: !!componentId && enabled,
@@ -2298,9 +2297,9 @@ export const usePerformanceMetrics = (options?: {
       const response = await apiClient.get<Record<string, unknown>>(
         '/performance/metrics'
       );
-      
+
       const data = response.data;
-      
+
       const metrics: PerformanceMetrics = {
         cpuUsage: (data.cpu_usage as PerformanceMetrics['cpuUsage']) || [],
         memoryUsage: (data.memory_usage as PerformanceMetrics['memoryUsage']) || [],
@@ -2319,7 +2318,7 @@ export const usePerformanceMetrics = (options?: {
         },
         timestamp: (data.timestamp as string) || new Date().toISOString(),
       };
-      
+
       return metrics;
     },
     enabled,
@@ -2362,7 +2361,7 @@ export const usePerformanceAlerts = (options?: {
       const response = await apiClient.get<PerformanceAlert[]>(
         '/performance/alerts'
       );
-      
+
       return response.data;
     },
     enabled,
@@ -2402,9 +2401,9 @@ export const usePerformanceThresholds = (options?: {
       const response = await apiClient.get<Record<string, unknown>>(
         '/performance/thresholds'
       );
-      
+
       const data = response.data;
-      
+
       const thresholds: PerformanceThresholds = {
         cpuWarning: (data.cpu_warning as number) || 70,
         cpuCritical: (data.cpu_critical as number) || 90,
@@ -2415,7 +2414,7 @@ export const usePerformanceThresholds = (options?: {
         diskIOWarning: (data.disk_io_warning as number) || 50,
         diskIOCritical: (data.disk_io_critical as number) || 100,
       };
-      
+
       return thresholds;
     },
     enabled,
@@ -2514,7 +2513,7 @@ export const useExportPerformanceData = () => {
         params: { start_time: startTime, end_time: endTime },
         responseType: 'blob',
       });
-      
+
       // Create download link
       const blob = new Blob([response.data], { type: 'application/json' });
       const url = window.URL.createObjectURL(blob);
@@ -2525,7 +2524,7 @@ export const useExportPerformanceData = () => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
+
       return response.data;
     },
   });

@@ -4,13 +4,41 @@
  */
 
 /**
+ * Generic wrapper for list endpoints returned by the Medkit API
+ */
+export interface ApiListResponse<T> {
+  items: T[];
+  'x-medkit'?: Record<string, unknown>;
+}
+
+/**
+ * ROS 2 Medkit metadata attached to every entity
+ */
+export interface MedkitMetadata {
+  ros2?: {
+    namespace?: string;
+    node?: string;
+    direction?: string;
+    topic?: string;
+    type?: string;
+  };
+  source?: string;
+  type_info?: Record<string, unknown>;
+  entity_id?: string;
+  total_count?: number;
+  [key: string]: unknown;
+}
+
+/**
  * Area represents a logical grouping of components
  */
 export interface Area {
   id: string;
   name: string;
+  href?: string;
   description?: string;
-  componentCount: number;
+  componentCount?: number;
+  'x-medkit'?: MedkitMetadata;
 }
 
 /**
@@ -19,10 +47,23 @@ export interface Area {
 export interface Component {
   id: string;
   name: string;
-  identifier: string;
-  areaId: string;
-  status: 'active' | 'inactive' | 'error';
+  href?: string;
+  identifier?: string;
+  areaId?: string;
+  status?: 'active' | 'inactive' | 'error';
   metadata?: Record<string, unknown>;
+  'x-medkit'?: MedkitMetadata;
+}
+
+/**
+ * Data item represents a topic/data entry on a component
+ */
+export interface DataItem {
+  id: string;
+  name: string;
+  category?: string;
+  href?: string;
+  'x-medkit'?: MedkitMetadata;
 }
 
 /**

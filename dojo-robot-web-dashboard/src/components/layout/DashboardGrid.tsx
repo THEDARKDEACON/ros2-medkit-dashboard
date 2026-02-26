@@ -1,5 +1,8 @@
 import React from 'react';
-import GridLayout from 'react-grid-layout';
+import { ReactGridLayout } from 'react-grid-layout';
+// Cast to any - ReactGridLayout v2 accepts legacy v1 props at runtime 
+// but the TypeScript types don't declare them
+const GridLayoutComponent = ReactGridLayout as any;
 import { useLayoutStore } from '../../features/stores/layoutStore';
 import { PANEL_LIBRARY } from '../../config/panelLibrary';
 import type { PanelConfig } from '../../types/layout';
@@ -11,16 +14,10 @@ import { SystemHealthOverview } from '../dashboard/SystemHealthOverview';
 import { MetricsPanel } from '../dashboard/MetricsPanel';
 import { QuickAccessCards } from '../dashboard/QuickAccessCards';
 
-interface DashboardGridProps {
-  isCustomizing?: boolean;
-}
-
-export const DashboardGrid: React.FC<DashboardGridProps> = ({
-  isCustomizing = false,
-}) => {
+export const DashboardGrid: React.FC = () => {
   const { getCurrentLayout } = useLayoutStore();
   const currentLayout = getCurrentLayout();
-  
+
   if (!currentLayout) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -28,7 +25,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
       </div>
     );
   }
-  
+
   const layoutItems = currentLayout.panels.map((panel) => ({
     i: panel.id,
     x: panel.position.x,
@@ -38,7 +35,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
     minW: PANEL_LIBRARY.find((p) => p.type === panel.type)?.minSize.width || 2,
     minH: PANEL_LIBRARY.find((p) => p.type === panel.type)?.minSize.height || 2,
   }));
-  
+
   const renderPanel = (panel: PanelConfig) => {
     switch (panel.type) {
       case 'system-health':
@@ -109,13 +106,12 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
         );
     }
   };
-  
+
   return (
     <div className="h-full overflow-auto p-4">
-      <GridLayout
+      <GridLayoutComponent
         className="layout"
         layout={layoutItems}
-        cols={12}
         rowHeight={100}
         width={1200}
         isDraggable={false}
@@ -127,7 +123,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({
             {renderPanel(panel)}
           </div>
         ))}
-      </GridLayout>
+      </GridLayoutComponent>
     </div>
   );
 };

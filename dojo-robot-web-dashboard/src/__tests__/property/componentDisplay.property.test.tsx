@@ -36,18 +36,18 @@ const readableNameArbitrary = fc.oneof(
   fc.stringMatching(/^[A-Z][a-z]{3,10} [A-Z][a-z]{3,10}$/), // Two words pattern
 );
 
-const componentArbitrary: fc.Arbitrary<Component> = fc.record({
-  id: fc.stringMatching(/^[a-z][a-z0-9_-]{2,20}$/),
-  name: readableNameArbitrary,
-  identifier: fc.stringMatching(/^[a-z][a-z0-9_/]{2,50}$/),
-  areaId: fc.stringMatching(/^[a-z][a-z0-9_-]{2,20}$/),
-  status: componentStatusArbitrary,
-  metadata: fc.option(fc.dictionary(fc.string(), fc.anything()), {
-    nil: undefined,
-  }),
-});
+// const _componentArbitrary: fc.Arbitrary<Component> = fc.record({
+//   id: fc.stringMatching(/^[a-z][a-z0-9_-]{2,20}$/),
+//   name: readableNameArbitrary,
+//   identifier: fc.stringMatching(/^[a-z][a-z0-9_/]{2,50}$/),
+//   areaId: fc.stringMatching(/^[a-z][a-z0-9_-]{2,20}$/),
+//   status: componentStatusArbitrary,
+//   metadata: fc.option(fc.dictionary(fc.string(), fc.anything()), {
+//     nil: undefined,
+//   }),
+// });
 
-const areaArbitrary: fc.Arbitrary<Area> = fc.record({
+const _areaArbitrary: fc.Arbitrary<Area> = fc.record({
   id: fc.stringMatching(/^[a-z][a-z0-9_-]{2,20}$/),
   name: readableNameArbitrary,
   description: fc.option(fc.string({ minLength: 1, maxLength: 200 }), {
@@ -551,7 +551,7 @@ describe('Property 4: Component Navigation', () => {
     const componentButton = screen.getByRole('treeitem', {
       name: new RegExp(`${component.name} component`, 'i'),
     });
-    
+
     expect(componentButton).toHaveAttribute('aria-selected', 'true');
     expect(componentButton).toHaveClass('bg-primary/10');
   });

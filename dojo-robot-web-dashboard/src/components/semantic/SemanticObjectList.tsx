@@ -37,7 +37,7 @@ const getClassColor = (className: string): string => {
 /**
  * Get icon for object class
  */
-const getClassIcon = (className: string) => {
+const getClassIcon = (_className: string) => {
   // For now, use Package icon for all objects
   // Can be extended with specific icons per class
   return <Package className="w-4 h-4" />;
@@ -307,13 +307,12 @@ export const SemanticObjectList: React.FC<SemanticObjectListProps> = ({
                   {/* Confidence badge */}
                   <div className="ml-3">
                     <div
-                      className={`px-2 py-1 rounded text-xs font-medium ${
-                        object.confidence >= 0.8
+                      className={`px-2 py-1 rounded text-xs font-medium ${object.confidence >= 0.8
                           ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                           : object.confidence >= 0.6
-                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}
+                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                        }`}
                     >
                       {(object.confidence * 100).toFixed(0)}%
                     </div>
