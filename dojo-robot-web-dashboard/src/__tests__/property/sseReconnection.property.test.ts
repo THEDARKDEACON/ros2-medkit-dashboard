@@ -56,9 +56,9 @@ describe('Property 39: SSE reconnection with exponential backoff', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    originalEventSource = global.EventSource;
-    global.EventSource = MockEventSource as any;
-    
+    originalEventSource = globalThis.EventSource;
+    globalThis.EventSource = MockEventSource as any;
+
     // Reset connection store
     useConnectionStore.getState().setSSEStatus('disconnected');
     useConnectionStore.getState().resetReconnectAttempts();
@@ -67,7 +67,7 @@ describe('Property 39: SSE reconnection with exponential backoff', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.useRealTimers();
-    global.EventSource = originalEventSource;
+    globalThis.EventSource = originalEventSource;
   });
 
   /**
@@ -91,13 +91,13 @@ describe('Property 39: SSE reconnection with exponential backoff', () => {
           let eventSourceCreationCount = 0;
 
           // Track EventSource creation
-          const OriginalMockEventSource = global.EventSource;
-          global.EventSource = class extends MockEventSource {
+          const OriginalMockEventSource = globalThis.EventSource;
+          globalThis.EventSource = class extends MockEventSource {
             constructor(url: string) {
               super(url);
               eventSourceCreationCount++;
               connectionAttempts.push(Date.now());
-              
+
               // Simulate error after a short delay
               setTimeout(() => {
                 this.simulateError();
@@ -122,7 +122,7 @@ describe('Property 39: SSE reconnection with exponential backoff', () => {
             for (let i = 1; i < Math.min(connectionAttempts.length - 1, 4); i++) {
               const actualDelay = connectionAttempts[i + 1] - connectionAttempts[i];
               const expectedDelay = Math.min(baseDelay * Math.pow(2, i), maxDelay);
-              
+
               // Allow some tolerance for timing (±100ms)
               expect(actualDelay).toBeGreaterThanOrEqual(expectedDelay - 100);
               expect(actualDelay).toBeLessThanOrEqual(expectedDelay + 200);
@@ -130,7 +130,7 @@ describe('Property 39: SSE reconnection with exponential backoff', () => {
           }
 
           manager.disconnect();
-          global.EventSource = OriginalMockEventSource;
+          globalThis.EventSource = OriginalMockEventSource;
         }
       ),
       { numRuns: 10 }
@@ -155,12 +155,12 @@ describe('Property 39: SSE reconnection with exponential backoff', () => {
           let eventSourceCreationCount = 0;
 
           // Track EventSource creation
-          const OriginalMockEventSource = global.EventSource;
-          global.EventSource = class extends MockEventSource {
+          const OriginalMockEventSource = globalThis.EventSource;
+          globalThis.EventSource = class extends MockEventSource {
             constructor(url: string) {
               super(url);
               eventSourceCreationCount++;
-              
+
               // Simulate error immediately
               setTimeout(() => {
                 this.simulateError();
@@ -185,7 +185,7 @@ describe('Property 39: SSE reconnection with exponential backoff', () => {
           expect(status).toBe('failed');
 
           manager.disconnect();
-          global.EventSource = OriginalMockEventSource;
+          globalThis.EventSource = OriginalMockEventSource;
         }
       ),
       { numRuns: 10 }
@@ -203,17 +203,15 @@ describe('Property 39: SSE reconnection with exponential backoff', () => {
       maxReconnectAttempts: 5,
     });
 
-    let eventSourceInstance: MockEventSource | null = null;
     let connectionCount = 0;
 
     // Track EventSource creation
-    const OriginalMockEventSource = global.EventSource;
-    global.EventSource = class extends MockEventSource {
+    const OriginalMockEventSource = globalThis.EventSource;
+    globalThis.EventSource = class extends MockEventSource {
       constructor(url: string) {
         super(url);
-        eventSourceInstance = this;
         connectionCount++;
-        
+
         // First connection fails
         if (connectionCount === 1) {
           setTimeout(() => {
@@ -240,12 +238,12 @@ describe('Property 39: SSE reconnection with exponential backoff', () => {
 
     // Should have connected successfully
     expect(useConnectionStore.getState().sseStatus).toBe('connected');
-    
+
     // Reconnection attempts should be reset
     expect(manager.getReconnectionAttempts()).toBe(0);
 
     manager.disconnect();
-    global.EventSource = OriginalMockEventSource;
+    globalThis.EventSource = OriginalMockEventSource;
   });
 
   /**
@@ -260,15 +258,13 @@ describe('Property 39: SSE reconnection with exponential backoff', () => {
     });
 
     const statusHistory: string[] = [];
-    let eventSourceInstance: MockEventSource | null = null;
 
     // Track EventSource creation
-    const OriginalMockEventSource = global.EventSource;
-    global.EventSource = class extends MockEventSource {
+    const OriginalMockEventSource = globalThis.EventSource;
+    globalThis.EventSource = class extends MockEventSource {
       constructor(url: string) {
         super(url);
-        eventSourceInstance = this;
-        
+
         // Simulate error after a short delay
         setTimeout(() => {
           this.simulateError();
@@ -289,7 +285,7 @@ describe('Property 39: SSE reconnection with exponential backoff', () => {
 
     // Wait for error and reconnection
     await vi.advanceTimersByTimeAsync(50);
-    
+
     // Should be reconnecting
     expect(useConnectionStore.getState().sseStatus).toBe('reconnecting');
 
@@ -302,7 +298,7 @@ describe('Property 39: SSE reconnection with exponential backoff', () => {
 
     manager.disconnect();
     unsubscribe();
-    global.EventSource = OriginalMockEventSource;
+    globalThis.EventSource = OriginalMockEventSource;
   });
 
   /**
@@ -319,12 +315,12 @@ describe('Property 39: SSE reconnection with exponential backoff', () => {
     let eventSourceCreationCount = 0;
 
     // Track EventSource creation
-    const OriginalMockEventSource = global.EventSource;
-    global.EventSource = class extends MockEventSource {
+    const OriginalMockEventSource = globalThis.EventSource;
+    globalThis.EventSource = class extends MockEventSource {
       constructor(url: string) {
         super(url);
         eventSourceCreationCount++;
-        
+
         // Simulate error after a short delay
         setTimeout(() => {
           this.simulateError();
@@ -349,7 +345,7 @@ describe('Property 39: SSE reconnection with exponential backoff', () => {
     // Should not have created any new EventSource instances
     expect(eventSourceCreationCount).toBe(countAfterDisconnect);
 
-    global.EventSource = OriginalMockEventSource;
+    globalThis.EventSource = OriginalMockEventSource;
   });
 
   /**
@@ -367,12 +363,12 @@ describe('Property 39: SSE reconnection with exponential backoff', () => {
     const connectionAttempts: number[] = [];
 
     // Track EventSource creation
-    const OriginalMockEventSource = global.EventSource;
-    global.EventSource = class extends MockEventSource {
+    const OriginalMockEventSource = globalThis.EventSource;
+    globalThis.EventSource = class extends MockEventSource {
       constructor(url: string) {
         super(url);
         connectionAttempts.push(Date.now());
-        
+
         // Simulate error after a short delay
         setTimeout(() => {
           this.simulateError();
@@ -396,7 +392,7 @@ describe('Property 39: SSE reconnection with exponential backoff', () => {
       for (let i = 0; i < Math.min(connectionAttempts.length - 1, expectedDelays.length); i++) {
         const actualDelay = connectionAttempts[i + 1] - connectionAttempts[i];
         const expectedDelay = expectedDelays[i];
-        
+
         // Allow some tolerance for timing (±100ms)
         expect(actualDelay).toBeGreaterThanOrEqual(expectedDelay - 100);
         expect(actualDelay).toBeLessThanOrEqual(expectedDelay + 200);
@@ -404,6 +400,6 @@ describe('Property 39: SSE reconnection with exponential backoff', () => {
     }
 
     manager.disconnect();
-    global.EventSource = OriginalMockEventSource;
+    globalThis.EventSource = OriginalMockEventSource;
   });
 });

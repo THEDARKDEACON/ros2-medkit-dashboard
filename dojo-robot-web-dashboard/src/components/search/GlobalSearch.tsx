@@ -79,13 +79,13 @@ export function GlobalSearch({
     components.forEach((component) => {
       if (
         component.name.toLowerCase().includes(searchTerm) ||
-        component.identifier.toLowerCase().includes(searchTerm)
+        (component.identifier?.toLowerCase() ?? '').includes(searchTerm)
       ) {
         searchResults.push({
           type: 'component',
           id: component.id,
           name: component.name,
-          description: component.identifier,
+          description: component.identifier ?? '',
           metadata: `Area: ${component.areaId}`,
         });
       }

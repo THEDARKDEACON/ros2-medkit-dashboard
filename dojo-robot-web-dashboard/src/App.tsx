@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter, RouterProvider, Outlet } from 'react-router-dom';
 import { AppShell } from '@/components/layout';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { useRobotSwitch } from '@/features/api/useRobotSwitch';
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 import './App.css';
@@ -57,15 +58,17 @@ function LoadingFallback() {
 function RootLayout() {
   // Handle robot switching - updates API client, clears cache, disconnects connections
   useRobotSwitch();
-  
+
   // Enable global keyboard navigation
   useKeyboardNavigation();
 
   return (
     <AppShell>
-      <Suspense fallback={<LoadingFallback />}>
-        <Outlet />
-      </Suspense>
+      <ErrorBoundary>
+        <Suspense fallback={<LoadingFallback />}>
+          <Outlet />
+        </Suspense>
+      </ErrorBoundary>
     </AppShell>
   );
 }

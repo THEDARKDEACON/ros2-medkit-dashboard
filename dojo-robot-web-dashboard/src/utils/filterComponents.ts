@@ -25,8 +25,7 @@ export function filterComponents(
 
   return components.filter((component) => {
     const nameMatch = component.name.toLowerCase().includes(normalizedSearch);
-    const identifierMatch = component.identifier
-      .toLowerCase()
+    const identifierMatch = (component.identifier?.toLowerCase() ?? '')
       .includes(normalizedSearch);
 
     return nameMatch || identifierMatch;

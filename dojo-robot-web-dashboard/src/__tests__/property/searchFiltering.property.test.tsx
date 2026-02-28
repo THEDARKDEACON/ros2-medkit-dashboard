@@ -58,7 +58,7 @@ describe('Property 2: Component Search Filtering Accuracy', () => {
             const nameMatch = component.name
               .toLowerCase()
               .includes(normalizedSearch);
-            const identifierMatch = component.identifier
+            const identifierMatch = (component.identifier ?? '')
               .toLowerCase()
               .includes(normalizedSearch);
 
@@ -70,7 +70,7 @@ describe('Property 2: Component Search Filtering Accuracy', () => {
             const nameMatch = component.name
               .toLowerCase()
               .includes(normalizedSearch);
-            const identifierMatch = component.identifier
+            const identifierMatch = (component.identifier ?? '')
               .toLowerCase()
               .includes(normalizedSearch);
 
@@ -350,14 +350,14 @@ describe('Property 57: Search Input Debouncing Timing', () => {
 
     // Type first character
     await user.type(input, 't');
-    
+
     // Wait 200ms (less than debounce)
     await new Promise(resolve => setTimeout(resolve, 200));
     expect(onChange).not.toHaveBeenCalled();
 
     // Type second character (should reset timer)
     await user.type(input, 'e');
-    
+
     // Wait 200ms again (still less than debounce from last keystroke)
     await new Promise(resolve => setTimeout(resolve, 200));
     expect(onChange).not.toHaveBeenCalled();
@@ -479,7 +479,7 @@ describe('Property 67: Component Filter Accuracy', () => {
               const nameMatch = component.name
                 .toLowerCase()
                 .includes(normalizedSearch);
-              const identifierMatch = component.identifier
+              const identifierMatch = (component.identifier ?? '')
                 .toLowerCase()
                 .includes(normalizedSearch);
               expect(nameMatch || identifierMatch).toBe(true);

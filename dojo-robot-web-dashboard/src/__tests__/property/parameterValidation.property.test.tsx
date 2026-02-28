@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
-import type { Parameter, ParameterConstraints } from '@/types/api';
+import type { Parameter } from '@/types/api';
 
 /**
  * Validation function (extracted from ParameterEditor for testing)
@@ -82,7 +82,7 @@ describe('Property 30: Parameter Value Validation', () => {
    * 
    * **Validates: Requirements 6.6**
    */
-  
+
   it('should reject number values below minimum constraint', () => {
     fc.assert(
       fc.property(

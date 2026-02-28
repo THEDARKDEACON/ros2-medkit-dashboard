@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as fc from 'fast-check';
+// fast-check import removed
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -18,24 +18,9 @@ import type { Component, Area } from '@/types/api';
 vi.mock('@/features/api/hooks');
 
 // Arbitraries for generating test data
-const componentStatusArbitrary = fc.constantFrom('active', 'inactive', 'error');
+// removed componentStatusArbitrary
 
-// Generate readable names without special characters that could cause DOM issues
-// Use word-like patterns that are easy to find in the DOM
-const readableNameArbitrary = fc.oneof(
-  fc.constant('Navigation Controller'),
-  fc.constant('Perception Module'),
-  fc.constant('Safety Monitor'),
-  fc.constant('Sensor Manager'),
-  fc.constant('Motion Planner'),
-  fc.constant('Localization System'),
-  fc.constant('Mapping Service'),
-  fc.constant('Path Planner'),
-  fc.constant('Obstacle Detector'),
-  fc.constant('Camera Driver'),
-  fc.stringMatching(/^[A-Z][a-z]{3,10} [A-Z][a-z]{3,10}$/), // Two words pattern
-);
-
+// readableNameArbitrary removed
 // const _componentArbitrary: fc.Arbitrary<Component> = fc.record({
 //   id: fc.stringMatching(/^[a-z][a-z0-9_-]{2,20}$/),
 //   name: readableNameArbitrary,
@@ -47,14 +32,7 @@ const readableNameArbitrary = fc.oneof(
 //   }),
 // });
 
-const _areaArbitrary: fc.Arbitrary<Area> = fc.record({
-  id: fc.stringMatching(/^[a-z][a-z0-9_-]{2,20}$/),
-  name: readableNameArbitrary,
-  description: fc.option(fc.string({ minLength: 1, maxLength: 200 }), {
-    nil: undefined,
-  }),
-  componentCount: fc.nat({ max: 100 }),
-});
+// _areaArbitrary removed
 
 /**
  * Helper to create a test wrapper with router and query client
@@ -176,7 +154,7 @@ describe('Property 3: Component Metadata Completeness', () => {
       expect(nameElements.length).toBeGreaterThan(0);
 
       // Component identifier should be displayed
-      expect(screen.getByText(component.identifier)).toBeInTheDocument();
+      expect(screen.getByText(component.identifier ?? '')).toBeInTheDocument();
 
       // Area name should be displayed
       expect(screen.getByText(area.name)).toBeInTheDocument();
@@ -273,7 +251,7 @@ describe('Property 3: Component Metadata Completeness', () => {
 
     // All required metadata should still be present
     expect(screen.getAllByText(component.name).length).toBeGreaterThan(0);
-    expect(screen.getByText(component.identifier)).toBeInTheDocument();
+    expect(screen.getByText(component.identifier ?? '')).toBeInTheDocument();
     expect(screen.getByText(area.name)).toBeInTheDocument();
   });
 

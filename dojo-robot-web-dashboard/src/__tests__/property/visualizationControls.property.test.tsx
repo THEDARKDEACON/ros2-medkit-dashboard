@@ -195,7 +195,7 @@ describe('Property 45: Visualization Layer Toggle', () => {
       initialLayers[layer] = !initialLayers[layer];
     };
 
-    const user = userEvent.setup();
+    userEvent.setup();
 
     render(
       <MapControls
@@ -223,7 +223,7 @@ describe('Property 45: Visualization Layer Toggle', () => {
   it('should allow independent control of all layers', () => {
     fc.assert(
       fc.property(mapLayersArbitrary, (layers) => {
-        const onLayerToggle = () => {};
+        const onLayerToggle = () => { };
 
         const { unmount } = render(
           <MapControls
@@ -277,7 +277,7 @@ describe('Property 45: Visualization Layer Toggle', () => {
     const { container } = render(
       <MapControls
         layers={layers}
-        onLayerToggle={() => {}}
+        onLayerToggle={() => { }}
       />
     );
 
@@ -307,7 +307,7 @@ describe('Property 45: Visualization Layer Toggle', () => {
    * Property: Legend should be hideable via config
    */
   it('should hide legend when showLegend is false', () => {
-    const { container } = render(
+    render(
       <Map2D
         width={800}
         height={600}
@@ -375,7 +375,7 @@ describe('Property 45: Visualization Layer Toggle', () => {
     render(
       <MapControls
         layers={layers}
-        onLayerToggle={() => {}}
+        onLayerToggle={() => { }}
       />
     );
 

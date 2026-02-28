@@ -26,7 +26,7 @@ class MockWebSocket {
     this.url = url;
   }
 
-  send(data: string) {
+  send(_data: string) {
     if (this.readyState !== MockWebSocket.OPEN) {
       throw new Error('WebSocket is not open');
     }
@@ -75,8 +75,8 @@ describe('Property 53: WebSocket reconnection with exponential backoff', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    originalWebSocket = global.WebSocket;
-    global.WebSocket = MockWebSocket as any;
+    originalWebSocket = globalThis.WebSocket;
+    globalThis.WebSocket = MockWebSocket as any;
 
     // Reset connection store
     useConnectionStore.getState().setWSStatus('disconnected');
@@ -87,7 +87,7 @@ describe('Property 53: WebSocket reconnection with exponential backoff', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.useRealTimers();
-    global.WebSocket = originalWebSocket;
+    globalThis.WebSocket = originalWebSocket;
   });
 
   /**
@@ -111,8 +111,8 @@ describe('Property 53: WebSocket reconnection with exponential backoff', () => {
           let wsCreationCount = 0;
 
           // Track WebSocket creation
-          const OriginalMockWebSocket = global.WebSocket;
-          global.WebSocket = class extends MockWebSocket {
+          const OriginalMockWebSocket = globalThis.WebSocket;
+          globalThis.WebSocket = class extends MockWebSocket {
             constructor(url: string) {
               super(url);
               wsCreationCount++;
@@ -150,7 +150,7 @@ describe('Property 53: WebSocket reconnection with exponential backoff', () => {
           }
 
           manager.disconnect();
-          global.WebSocket = OriginalMockWebSocket;
+          globalThis.WebSocket = OriginalMockWebSocket;
         }
       ),
       { numRuns: 10 }
@@ -176,8 +176,8 @@ describe('Property 53: WebSocket reconnection with exponential backoff', () => {
           let wsCreationCount = 0;
 
           // Track WebSocket creation
-          const OriginalMockWebSocket = global.WebSocket;
-          global.WebSocket = class extends MockWebSocket {
+          const OriginalMockWebSocket = globalThis.WebSocket;
+          globalThis.WebSocket = class extends MockWebSocket {
             constructor(url: string) {
               super(url);
               wsCreationCount++;
@@ -210,7 +210,7 @@ describe('Property 53: WebSocket reconnection with exponential backoff', () => {
           expect(pollingEnabled).toBe(true);
 
           manager.disconnect();
-          global.WebSocket = OriginalMockWebSocket;
+          globalThis.WebSocket = OriginalMockWebSocket;
         }
       ),
       { numRuns: 10 }
@@ -228,15 +228,13 @@ describe('Property 53: WebSocket reconnection with exponential backoff', () => {
       maxReconnectAttempts: 5,
     });
 
-    let wsInstance: MockWebSocket | null = null;
     let connectionCount = 0;
 
     // Track WebSocket creation
-    const OriginalMockWebSocket = global.WebSocket;
-    global.WebSocket = class extends MockWebSocket {
+    const OriginalMockWebSocket = globalThis.WebSocket;
+    globalThis.WebSocket = class extends MockWebSocket {
       constructor(url: string) {
         super(url);
-        wsInstance = this;
         connectionCount++;
 
         // First connection fails
@@ -270,7 +268,7 @@ describe('Property 53: WebSocket reconnection with exponential backoff', () => {
     expect(manager.getReconnectionAttempts()).toBe(0);
 
     manager.disconnect();
-    global.WebSocket = OriginalMockWebSocket;
+    globalThis.WebSocket = OriginalMockWebSocket;
   });
 
   /**
@@ -285,14 +283,12 @@ describe('Property 53: WebSocket reconnection with exponential backoff', () => {
     });
 
     const statusHistory: string[] = [];
-    let wsInstance: MockWebSocket | null = null;
 
     // Track WebSocket creation
-    const OriginalMockWebSocket = global.WebSocket;
-    global.WebSocket = class extends MockWebSocket {
+    const OriginalMockWebSocket = globalThis.WebSocket;
+    globalThis.WebSocket = class extends MockWebSocket {
       constructor(url: string) {
         super(url);
-        wsInstance = this;
 
         // Simulate close after a short delay
         setTimeout(() => {
@@ -327,7 +323,7 @@ describe('Property 53: WebSocket reconnection with exponential backoff', () => {
 
     manager.disconnect();
     unsubscribe();
-    global.WebSocket = OriginalMockWebSocket;
+    globalThis.WebSocket = OriginalMockWebSocket;
   });
 
   /**
@@ -344,8 +340,8 @@ describe('Property 53: WebSocket reconnection with exponential backoff', () => {
     let wsCreationCount = 0;
 
     // Track WebSocket creation
-    const OriginalMockWebSocket = global.WebSocket;
-    global.WebSocket = class extends MockWebSocket {
+    const OriginalMockWebSocket = globalThis.WebSocket;
+    globalThis.WebSocket = class extends MockWebSocket {
       constructor(url: string) {
         super(url);
         wsCreationCount++;
@@ -374,7 +370,7 @@ describe('Property 53: WebSocket reconnection with exponential backoff', () => {
     // Should not have created any new WebSocket instances
     expect(wsCreationCount).toBe(countAfterDisconnect);
 
-    global.WebSocket = OriginalMockWebSocket;
+    globalThis.WebSocket = OriginalMockWebSocket;
   });
 
   /**
@@ -392,8 +388,8 @@ describe('Property 53: WebSocket reconnection with exponential backoff', () => {
     const connectionAttempts: number[] = [];
 
     // Track WebSocket creation
-    const OriginalMockWebSocket = global.WebSocket;
-    global.WebSocket = class extends MockWebSocket {
+    const OriginalMockWebSocket = globalThis.WebSocket;
+    globalThis.WebSocket = class extends MockWebSocket {
       constructor(url: string) {
         super(url);
         connectionAttempts.push(Date.now());
@@ -429,7 +425,7 @@ describe('Property 53: WebSocket reconnection with exponential backoff', () => {
     }
 
     manager.disconnect();
-    global.WebSocket = OriginalMockWebSocket;
+    globalThis.WebSocket = OriginalMockWebSocket;
   });
 
   /**
@@ -444,15 +440,13 @@ describe('Property 53: WebSocket reconnection with exponential backoff', () => {
       maxReconnectAttempts: 5,
     });
 
-    let wsInstance: MockWebSocket | null = null;
     const sentMessages: string[] = [];
 
     // Track WebSocket creation
-    const OriginalMockWebSocket = global.WebSocket;
-    global.WebSocket = class extends MockWebSocket {
+    const OriginalMockWebSocket = globalThis.WebSocket;
+    globalThis.WebSocket = class extends MockWebSocket {
       constructor(url: string) {
         super(url);
-        wsInstance = this;
 
         // Override send to track messages
         this.send = (data: string) => {
@@ -489,7 +483,7 @@ describe('Property 53: WebSocket reconnection with exponential backoff', () => {
     expect(sentMessages.length).toBe(2);
 
     manager.disconnect();
-    global.WebSocket = OriginalMockWebSocket;
+    globalThis.WebSocket = OriginalMockWebSocket;
   });
 
   /**
@@ -506,8 +500,8 @@ describe('Property 53: WebSocket reconnection with exponential backoff', () => {
     let wsInstance: MockWebSocket | null = null;
 
     // Track WebSocket creation
-    const OriginalMockWebSocket = global.WebSocket;
-    global.WebSocket = class extends MockWebSocket {
+    const OriginalMockWebSocket = globalThis.WebSocket;
+    globalThis.WebSocket = class extends MockWebSocket {
       constructor(url: string) {
         super(url);
         wsInstance = this;
@@ -532,7 +526,7 @@ describe('Property 53: WebSocket reconnection with exponential backoff', () => {
     });
 
     // Simulate message from server
-    wsInstance?.simulateMessage(
+    (wsInstance as any)?.simulateMessage(
       JSON.stringify({
         event: 'test_event',
         payload: { value: 123 },
@@ -548,7 +542,7 @@ describe('Property 53: WebSocket reconnection with exponential backoff', () => {
     unsubscribe();
 
     // Simulate another message
-    wsInstance?.simulateMessage(
+    (wsInstance as any)?.simulateMessage(
       JSON.stringify({
         event: 'test_event',
         payload: { value: 456 },
@@ -560,6 +554,6 @@ describe('Property 53: WebSocket reconnection with exponential backoff', () => {
     expect(receivedData.length).toBe(1);
 
     manager.disconnect();
-    global.WebSocket = OriginalMockWebSocket;
+    globalThis.WebSocket = OriginalMockWebSocket;
   });
 });

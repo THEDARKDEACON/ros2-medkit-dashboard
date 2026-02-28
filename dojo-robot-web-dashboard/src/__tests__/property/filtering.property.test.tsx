@@ -318,17 +318,17 @@ describe('Property 70: Operation Filter Accuracy', () => {
         fc.array(operationArbitrary, { minLength: 1, maxLength: 50 }),
         (operations) => {
           const filtered = operations.filter(
-            (operation) => operation.available === true
+            (operation) => (operation as any).available === true
           );
 
           // All filtered operations should be available
           filtered.forEach((operation) => {
-            expect(operation.available).toBe(true);
+            expect((operation as any).available).toBe(true);
           });
 
           // All available operations should be in filtered results
           operations.forEach((operation) => {
-            if (operation.available === true) {
+            if ((operation as any).available === true) {
               expect(filtered).toContainEqual(operation);
             } else {
               expect(filtered).not.toContainEqual(operation);
@@ -352,20 +352,20 @@ describe('Property 70: Operation Filter Accuracy', () => {
           // Apply both filters: type and availability
           const filtered = operations.filter(
             (operation) =>
-              operation.type === targetType && operation.available === true
+              operation.type === targetType && (operation as any).available === true
           );
 
           // All filtered operations should match all criteria
           filtered.forEach((operation) => {
             expect(operation.type).toBe(targetType);
-            expect(operation.available).toBe(true);
+            expect((operation as any).available).toBe(true);
           });
 
           // All operations matching all criteria should be in filtered results
           operations.forEach((operation) => {
             if (
               operation.type === targetType &&
-              operation.available === true
+              (operation as any).available === true
             ) {
               expect(filtered).toContainEqual(operation);
             } else {
@@ -651,7 +651,7 @@ describe('Property 72: Filtered Results Count Accuracy', () => {
           // Filter by type AND availability (more restrictive)
           const filteredByTypeAndAvailability = operations.filter(
             (operation) =>
-              operation.type === targetType && operation.available === true
+              operation.type === targetType && (operation as any).available === true
           );
 
           // More restrictive filter should have <= count

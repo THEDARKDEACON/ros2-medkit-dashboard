@@ -12,7 +12,7 @@ describe('robotStore', () => {
 
   describe('addRobot', () => {
     it('should add a new robot instance', () => {
-      const { addRobot, robots } = useRobotStore.getState();
+      const { addRobot } = useRobotStore.getState();
       const id = addRobot('Test Robot', 'http://localhost:8080');
 
       const state = useRobotStore.getState();
