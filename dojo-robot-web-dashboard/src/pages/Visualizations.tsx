@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Map, Box, Camera, Loader2, WifiOff, Wifi, AlertTriangle } from 'lucide-react';
 import { Map2D } from '../components/visualizations/Map2D';
-import { Scene3D } from '../components/visualizations/Scene3D';
 import { PointCloudViewer } from '../components/visualizations/PointCloudViewer';
+import { RobotScene3D } from '../components/visualizations/RobotScene3D';
 import { Visualization3DControls } from '../components/visualizations/Visualization3DControls';
 import { useVisualizationData } from '../hooks/useVisualizationData';
 import type { PointCloudColorMode } from '../types/visualization';
@@ -201,7 +201,7 @@ export function Visualizations() {
                 />
                 <div className="absolute top-4 left-4 bg-background/80 backdrop-blur-sm rounded-lg shadow-sm p-3 border">
                   <div className="text-xs text-muted-foreground">
-                    Points: {vizData.pointCloudData.points.length.toLocaleString()}
+                    Points: {(vizData.pointCloudData.points?.length ?? 0).toLocaleString()}
                   </div>
                   <div className="text-xs text-muted-foreground">
                     Updated: {new Date(vizData.pointCloudData.timestamp).toLocaleTimeString()}
@@ -232,29 +232,17 @@ export function Visualizations() {
           </div>
         )}
 
-        {/* 3D Scene */}
+        {/* 3D Scene — Enhanced with laser scan, occupancy grid, and robot arrow */}
         {!showSkeleton && !showEmpty && activeTab === '3d-scene' && (
           <div className="w-full h-full bg-black/5 relative">
-            <Scene3D
+            <RobotScene3D
+              robotPose={vizData.robotPose}
+              occupancyGrid={vizData.occupancyGrid}
+              pointCloudData={vizData.pointCloudData}
               showGrid={showGrid}
               showAxes={showAxes}
-              cameraPosition={[5, 5, 5]}
               className="w-full h-full"
-            >
-              {/* Robot representation in 3D scene based on actual pose */}
-              {vizData.robotPose && (
-                <mesh position={[vizData.robotPose.x, 0.5, vizData.robotPose.y]}>
-                  <boxGeometry args={[0.5, 0.5, 0.8]} />
-                  <meshStandardMaterial color="#3b82f6" roughness={0.5} />
-                </mesh>
-              )}
-              {!vizData.robotPose && (
-                <mesh position={[0, 0.5, 0]}>
-                  <boxGeometry args={[1, 1, 1]} />
-                  <meshStandardMaterial color="#6b7280" roughness={0.7} />
-                </mesh>
-              )}
-            </Scene3D>
+            />
 
             <Visualization3DControls
               colorMode={colorMode}

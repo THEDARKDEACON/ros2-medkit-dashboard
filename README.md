@@ -82,10 +82,9 @@ The Dojo Robot Web Dashboard serves as a mission control center for autonomous r
 - **Timeline View**: Visualize fault history over time
 
 ### Visualizations
-- **2D Navigation Map**: Interactive occupancy grid with semantic objects and robot pose
-- **Point Cloud Viewer**: 3D point cloud visualization with color modes (RGB, intensity, semantic)
-- **Gaussian Splatting**: Advanced 3D reconstruction visualization
-- **Robot Orientation**: Real-time 3D robot orientation display
+- **2D Navigation Map**: Interactive occupancy grid with semantic objects, robot pose, live laser scan overlays, and path trails
+- **3D Point Cloud Viewer**: Live 3D LiDAR point cloud visualization with distance-based coloring
+- **Enhanced 3D Scene**: Unified 3D environment combining live odometry (directional robot arrow), projected occupancy grid floor, scattered laser scan particles, and robot trails
 - **Component Topology**: Visual representation of component relationships
 
 ### Performance Metrics
@@ -229,9 +228,12 @@ The application uses a hybrid state management approach:
 
 ### Backend Requirements
 - **ros2_medkit API Gateway**: Must be running and accessible
-  - Default URL: `http://localhost:8080`
+  - Default URL: `http://localhost:8080` (or reverse-proxied through Vite/Nginx)
   - API version: v1
-  - Endpoints: REST API, SSE, WebSocket
+  - Endpoints: REST API for component management and configuration
+- **rosbridge_server**: Required for native ROS2 topic streaming
+  - WebSocket port: `9090` (default: `ws://localhost:9090`)
+  - Ensures ultra-low latency streaming for odometry, maps, and high-density laser scans
 
 ### Browser Requirements
 - **Chrome/Edge**: Version 90 or higher
@@ -345,16 +347,25 @@ The dashboard uses environment variables for configuration. Create a `.env` file
 
 ```env
 # API Gateway Configuration
-VITE_API_URL=http://localhost:8080/api/v1
+# In development, leave blank to use the Vite proxy (/api -> http://127.0.0.1:8080)
+# In production (Docker), set this to your backend's external URL if not proxying via Nginx
+# VITE_API_URL=http://localhost:8080/api/v1
+
+# Optional: Custom WebSocket URL for rosbridge (defaults to ws://localhost:9090)
+# VITE_WS_URL=ws://localhost:9090
 
 # Optional: Enable debug logging
 VITE_DEBUG=false
-
-# Optional: Custom WebSocket URL (defaults to API_URL with ws:// protocol)
-VITE_WS_URL=ws://localhost:8080/ws
 ```
 
 **Important**: All environment variables must be prefixed with `VITE_` to be accessible in the application.
+
+### Reverse Proxy & CORS
+
+To minimize CORS issues, the dashboard leverages a reverse proxy approach:
+- **Development**: Vite `server.proxy` forwards `/api` requests to `http://127.0.0.1:8080`.
+- **Production**: An Nginx container proxies `/api` requests to the `host.docker.internal:8080` (or a remote server).
+This allows the dashboard to safely connect to the Medkit gateway using the same origin.
 
 ### API Gateway Endpoints
 

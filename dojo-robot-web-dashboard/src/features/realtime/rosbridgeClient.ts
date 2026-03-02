@@ -455,13 +455,16 @@ export class RosbridgeClient {
     async getServices(): Promise<ServiceInfo[]> {
         try {
             const result = await this.callService('/rosapi/services') as {
-                services: string[];
-                types: string[];
+                services?: string[];
+                types?: string[];
             };
 
-            return result.services.map((name: string, i: number) => ({
+            const services = result?.services || [];
+            const types = result?.types || [];
+
+            return services.map((name: string, i: number) => ({
                 name,
-                type: result.types[i] || 'unknown',
+                type: types[i] || 'unknown',
             }));
         } catch (error) {
             console.error('[Rosbridge] Failed to get services:', error);

@@ -8,6 +8,7 @@ import { queryClient } from './lib/queryClient';
 import { ThemeProvider } from './components/ThemeProvider';
 import { setQueryClientRef, useRobotStore } from './features/stores/robotStore';
 import { updateApiBaseUrl } from './features/api/client';
+import { useRosbridgeStore } from './features/stores/rosbridgeStore';
 
 // Wire up QueryClient for multi-robot cache invalidation
 setQueryClientRef(queryClient);
@@ -18,6 +19,11 @@ if (activeRobot) {
   updateApiBaseUrl(activeRobot.apiUrl);
   console.log(`[Startup] Restored API URL for robot "${activeRobot.name}": ${activeRobot.apiUrl}`);
 }
+
+// Auto-connect rosbridge so all pages receive live topic data
+const rosbridgeState = useRosbridgeStore.getState();
+console.log(`[Startup] Connecting to rosbridge at ${rosbridgeState.url}...`);
+rosbridgeState.connect();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

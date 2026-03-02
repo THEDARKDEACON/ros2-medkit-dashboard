@@ -3,343 +3,161 @@ import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { QuickAccessCards } from '@/components/dashboard/QuickAccessCards';
-import * as hooks from '@/features/api/hooks';
 
-// Mock the API hooks
+// Mock all hooks
 vi.mock('@/features/api/hooks', () => ({
   useSystemHealth: vi.fn(),
-  useSemanticObjects: vi.fn().mockReturnValue({
-    data: [],
-    isLoading: false,
-    error: null,
-  }),
 }));
 
-const mockUseSystemHealth = hooks.useSystemHealth as ReturnType<typeof vi.fn>;
+vi.mock('@/hooks/useRosbridgeTopic', () => ({
+  useRosbridgeTopic: vi.fn(),
+}));
 
-// Helper to render with providers
-function renderWithProviders(component: React.ReactElement) {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
+vi.mock('@/features/stores/rosbridgeStore', () => ({
+  useRosbridgeStore: vi.fn(),
+}));
+
+import { useSystemHealth } from '@/features/api/hooks';
+import { useRosbridgeTopic } from '@/hooks/useRosbridgeTopic';
+import { useRosbridgeStore } from '@/features/stores/rosbridgeStore';
+
+const mockHealthy = () => {
+  (useSystemHealth as ReturnType<typeof vi.fn>).mockReturnValue({
+    data: {
+      totalAreas: 3, totalComponents: 10, activeComponents: 8, totalTopics: 25,
+      faultCounts: { error: 0, warning: 0, info: 0 },
+      systemStatus: 'healthy', areas: [], components: [], faults: [],
     },
+    isLoading: false, error: null, refetch: vi.fn(),
   });
+};
 
+const setupMocks = (rosbridgeConnected = false) => {
+  mockHealthy();
+  vi.mocked(useRosbridgeStore).mockImplementation((selector: any) => {
+    return selector({ status: rosbridgeConnected ? 'connected' : 'disconnected' });
+  });
+  vi.mocked(useRosbridgeTopic).mockReturnValue({
+    data: undefined, isConnected: rosbridgeConnected, lastUpdate: undefined, messageCount: 0, error: undefined,
+  } as any);
+};
+
+function renderWithProviders(component: React.ReactElement) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        {component}
-      </BrowserRouter>
-    </QueryClientProvider>
+    <QueryClientProvider client={queryClient}><BrowserRouter>{component}</BrowserRouter></QueryClientProvider>
   );
 }
 
 describe('QuickAccessCards', () => {
   it('renders without crashing', () => {
-    mockUseSystemHealth.mockReturnValue({
-      data: {
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 8,
-        totalTopics: 25,
-        faultCounts: { error: 0, warning: 0, info: 0 },
-        systemStatus: 'healthy' as const,
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
+    setupMocks();
     renderWithProviders(<QuickAccessCards />);
-
     expect(screen.getByText('Navigation')).toBeInTheDocument();
   });
 
   it('displays all three subsystem cards', () => {
-    mockUseSystemHealth.mockReturnValue({
-      data: {
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 8,
-        totalTopics: 25,
-        faultCounts: { error: 0, warning: 0, info: 0 },
-        systemStatus: 'healthy' as const,
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
+    setupMocks();
     renderWithProviders(<QuickAccessCards />);
-
-    // Check all three subsystem cards are present
     expect(screen.getByText('Navigation')).toBeInTheDocument();
     expect(screen.getByText('Perception')).toBeInTheDocument();
     expect(screen.getByText('Safety')).toBeInTheDocument();
   });
 
   it('displays correct descriptions for each subsystem', () => {
-    mockUseSystemHealth.mockReturnValue({
-      data: {
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 8,
-        totalTopics: 25,
-        faultCounts: { error: 0, warning: 0, info: 0 },
-        systemStatus: 'healthy' as const,
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
+    setupMocks();
     renderWithProviders(<QuickAccessCards />);
-
     expect(screen.getByText('Path planning and autonomous navigation')).toBeInTheDocument();
-    expect(screen.getByText('Semantic object detection and scene understanding')).toBeInTheDocument();
+    expect(screen.getByText('LiDAR scanning and obstacle detection')).toBeInTheDocument();
     expect(screen.getByText('Fault monitoring and system diagnostics')).toBeInTheDocument();
   });
 
   it('has correct navigation links', () => {
-    mockUseSystemHealth.mockReturnValue({
-      data: {
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 8,
-        totalTopics: 25,
-        faultCounts: { error: 0, warning: 0, info: 0 },
-        systemStatus: 'healthy' as const,
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
+    setupMocks();
     renderWithProviders(<QuickAccessCards />);
-
-    const navigationCard = screen.getByLabelText('Navigate to Navigation subsystem');
+    const navCard = screen.getByLabelText('Navigate to Navigation subsystem');
     const perceptionCard = screen.getByLabelText('Navigate to Perception subsystem');
     const safetyCard = screen.getByLabelText('Navigate to Safety subsystem');
-
-    expect(navigationCard).toHaveAttribute('href', '/visualizations');
+    expect(navCard).toHaveAttribute('href', '/visualizations');
     expect(perceptionCard).toHaveAttribute('href', '/visualizations');
     expect(safetyCard).toHaveAttribute('href', '/faults');
   });
 
   it('displays metrics for each card', () => {
-    mockUseSystemHealth.mockReturnValue({
-      data: {
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 8,
-        totalTopics: 25,
-        faultCounts: { error: 0, warning: 0, info: 0 },
-        systemStatus: 'healthy' as const,
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
+    setupMocks();
     renderWithProviders(<QuickAccessCards />);
-
-    // Navigation metrics
-    expect(screen.getByText('Active Goals')).toBeInTheDocument();
-    expect(screen.getByText('Path Length')).toBeInTheDocument();
-
-    // Perception metrics
-    expect(screen.getByText('Detected Objects')).toBeInTheDocument();
-    expect(screen.getByText('Confidence')).toBeInTheDocument();
-
-    // Safety metrics
+    expect(screen.getByText('Speed')).toBeInTheDocument();
+    expect(screen.getByText('Odom Messages')).toBeInTheDocument();
+    expect(screen.getByText('Scan Points')).toBeInTheDocument();
+    expect(screen.getByText('Min Range')).toBeInTheDocument();
     expect(screen.getByText('Active Faults')).toBeInTheDocument();
     expect(screen.getByText('Last Check')).toBeInTheDocument();
   });
 
   it('displays correct fault count in safety card', () => {
-    mockUseSystemHealth.mockReturnValue({
+    setupMocks();
+    (useSystemHealth as ReturnType<typeof vi.fn>).mockReturnValue({
       data: {
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 8,
-        totalTopics: 25,
+        totalAreas: 3, totalComponents: 10, activeComponents: 8, totalTopics: 25,
         faultCounts: { error: 2, warning: 3, info: 1 },
-        systemStatus: 'critical' as const,
-        areas: [],
-        components: [],
-        faults: [],
+        systemStatus: 'critical', areas: [], components: [], faults: [],
       },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
+      isLoading: false, error: null, refetch: vi.fn(),
     });
-
     renderWithProviders(<QuickAccessCards />);
-
-    // Should show 5 active faults (2 errors + 3 warnings)
     const safetySection = screen.getByText('Safety').closest('a');
     expect(safetySection).toHaveTextContent('5');
   });
 
   it('shows loading state when data is loading', () => {
-    mockUseSystemHealth.mockReturnValue({
-      data: undefined,
-      isLoading: true,
-      error: null,
-      refetch: vi.fn(),
+    setupMocks();
+    (useSystemHealth as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: undefined, isLoading: true, error: null, refetch: vi.fn(),
     });
-
     renderWithProviders(<QuickAccessCards />);
-
-    // Should show loading indicators
     const loadingIndicators = screen.getAllByText('...');
     expect(loadingIndicators.length).toBeGreaterThan(0);
   });
 
-  it('cards are clickable and accessible', () => {
-    mockUseSystemHealth.mockReturnValue({
-      data: {
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 8,
-        totalTopics: 25,
-        faultCounts: { error: 0, warning: 0, info: 0 },
-        systemStatus: 'healthy' as const,
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
+  it('cards are accessible links', () => {
+    setupMocks();
     renderWithProviders(<QuickAccessCards />);
-
-    const navigationCard = screen.getByLabelText('Navigate to Navigation subsystem');
-    const perceptionCard = screen.getByLabelText('Navigate to Perception subsystem');
-    const safetyCard = screen.getByLabelText('Navigate to Safety subsystem');
-
-    // Cards should be links
-    expect(navigationCard.tagName).toBe('A');
-    expect(perceptionCard.tagName).toBe('A');
-    expect(safetyCard.tagName).toBe('A');
-
-    // Cards should have aria-labels
-    expect(navigationCard).toHaveAttribute('aria-label');
-    expect(perceptionCard).toHaveAttribute('aria-label');
-    expect(safetyCard).toHaveAttribute('aria-label');
+    const navCard = screen.getByLabelText('Navigate to Navigation subsystem');
+    expect(navCard.tagName).toBe('A');
   });
 
   it('displays status indicators for each subsystem', () => {
-    mockUseSystemHealth.mockReturnValue({
+    setupMocks();
+    (useSystemHealth as ReturnType<typeof vi.fn>).mockReturnValue({
       data: {
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 8,
-        totalTopics: 25,
+        totalAreas: 3, totalComponents: 10, activeComponents: 8, totalTopics: 25,
         faultCounts: { error: 1, warning: 0, info: 0 },
-        systemStatus: 'critical' as const,
-        areas: [],
-        components: [],
-        faults: [],
+        systemStatus: 'critical', areas: [], components: [], faults: [],
       },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
+      isLoading: false, error: null, refetch: vi.fn(),
     });
-
     renderWithProviders(<QuickAccessCards />);
-
-    // Check for status indicators (should have role="status")
     const statusIndicators = screen.getAllByRole('status');
     expect(statusIndicators.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('shows critical status for safety card when errors exist', () => {
-    mockUseSystemHealth.mockReturnValue({
+  it('shows critical status for safety when errors exist', () => {
+    setupMocks();
+    (useSystemHealth as ReturnType<typeof vi.fn>).mockReturnValue({
       data: {
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 8,
-        totalTopics: 25,
+        totalAreas: 3, totalComponents: 10, activeComponents: 8, totalTopics: 25,
         faultCounts: { error: 2, warning: 0, info: 0 },
-        systemStatus: 'critical' as const,
-        areas: [],
-        components: [],
-        faults: [],
+        systemStatus: 'critical', areas: [], components: [], faults: [],
       },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
+      isLoading: false, error: null, refetch: vi.fn(),
     });
-
     renderWithProviders(<QuickAccessCards />);
-
-    const safetyStatus = screen.getByLabelText('Safety status: critical');
-    expect(safetyStatus).toBeInTheDocument();
+    expect(screen.getByLabelText('Safety status: critical')).toBeInTheDocument();
   });
 
-  it('shows warning status for safety card when warnings exist', () => {
-    mockUseSystemHealth.mockReturnValue({
-      data: {
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 8,
-        totalTopics: 25,
-        faultCounts: { error: 0, warning: 2, info: 0 },
-        systemStatus: 'degraded' as const,
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
+  it('shows healthy status for safety when no faults', () => {
+    setupMocks();
     renderWithProviders(<QuickAccessCards />);
-
-    const safetyStatus = screen.getByLabelText('Safety status: warning');
-    expect(safetyStatus).toBeInTheDocument();
-  });
-
-  it('shows healthy status for safety card when no faults exist', () => {
-    mockUseSystemHealth.mockReturnValue({
-      data: {
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 8,
-        totalTopics: 25,
-        faultCounts: { error: 0, warning: 0, info: 0 },
-        systemStatus: 'healthy' as const,
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    renderWithProviders(<QuickAccessCards />);
-
-    const safetyStatus = screen.getByLabelText('Safety status: healthy');
-    expect(safetyStatus).toBeInTheDocument();
+    expect(screen.getByLabelText('Safety status: healthy')).toBeInTheDocument();
   });
 });

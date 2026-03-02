@@ -66,6 +66,43 @@ interface UseVisualizationDataOptions {
     };
 }
 
+// ─── ROS Message Types (raw from rosbridge) ───────────────────────────────
+
+/** Raw nav_msgs/OccupancyGrid from rosbridge */
+interface RawOccupancyGrid {
+    info: {
+        width: number;
+        height: number;
+        resolution: number;
+        origin: {
+            position: { x: number; y: number; z: number };
+            orientation: { x: number; y: number; z: number; w: number };
+        };
+    };
+    data: number[];
+}
+
+/** Raw nav_msgs/Odometry from rosbridge */
+interface RawOdometry {
+    pose: {
+        pose: {
+            position: { x: number; y: number; z: number };
+            orientation: { x: number; y: number; z: number; w: number };
+        };
+    };
+}
+
+/** Raw sensor_msgs/LaserScan from rosbridge */
+interface RawLaserScan {
+    angle_min: number;
+    angle_max: number;
+    angle_increment: number;
+    ranges: number[];
+    intensities?: number[];
+}
+
+// ─── Hook ──────────────────────────────────────────────────────────────────
+
 export function useVisualizationData(
     options: UseVisualizationDataOptions = {}
 ): VisualizationData {
@@ -82,21 +119,21 @@ export function useVisualizationData(
 
     const mapTopic = rosbridgeTopics.map || '/map';
     const poseTopic = rosbridgeTopics.pose || '/odom';
-    const pointCloudTopic = rosbridgeTopics.pointCloud || '/scan';
+    const scanTopic = rosbridgeTopics.pointCloud || '/scan';
 
-    const rbMap = useRosbridgeTopic<OccupancyGrid>(
+    const rbMap = useRosbridgeTopic<RawOccupancyGrid>(
         mapTopic,
-        { type: 'nav_msgs/OccupancyGrid', throttleRate: 2000, enabled: useRosbridge && enabled }
+        { type: 'nav_msgs/msg/OccupancyGrid', throttleRate: 2000, enabled: useRosbridge && enabled }
     );
 
-    const rbPose = useRosbridgeTopic<{ pose: { pose: { position: { x: number; y: number; z: number }; orientation: { x: number; y: number; z: number; w: number } } } }>(
+    const rbPose = useRosbridgeTopic<RawOdometry>(
         poseTopic,
-        { type: 'nav_msgs/Odometry', throttleRate: 100, enabled: useRosbridge && enabled }
+        { type: 'nav_msgs/msg/Odometry', throttleRate: 100, enabled: useRosbridge && enabled }
     );
 
-    const rbPointCloud = useRosbridgeTopic<PointCloudData>(
-        pointCloudTopic,
-        { type: 'sensor_msgs/PointCloud2', throttleRate: 1000, enabled: useRosbridge && enabled }
+    const rbScan = useRosbridgeTopic<RawLaserScan>(
+        scanTopic,
+        { type: 'sensor_msgs/msg/LaserScan', throttleRate: 500, enabled: useRosbridge && enabled }
     );
 
     // ── REST Data Sources (fallback) ───────────────────────────────────────
@@ -116,16 +153,15 @@ export function useVisualizationData(
     });
     const pointCloudQuery = usePointCloudData({ enabled: restEnabled });
 
-    // ── Merge Data Sources ─────────────────────────────────────────────────
+    // ── Convert Rosbridge Data ─────────────────────────────────────────────
 
-    // Convert rosbridge odom to RobotPose
+    // Convert rosbridge Odometry → RobotPose
     const rbRobotPose: RobotPose | undefined = useMemo(() => {
         if (!rbPose.data) return undefined;
         const pos = rbPose.data.pose?.pose?.position;
         const orient = rbPose.data.pose?.pose?.orientation;
         if (!pos) return undefined;
 
-        // Convert quaternion to yaw (theta)
         const theta = orient
             ? Math.atan2(2 * (orient.w * orient.z + orient.x * orient.y), 1 - 2 * (orient.y * orient.y + orient.z * orient.z))
             : 0;
@@ -133,12 +169,62 @@ export function useVisualizationData(
         return { x: pos.x, y: pos.y, theta };
     }, [rbPose.data]);
 
-    // Choose data source
-    const robotPose = useRosbridge ? rbRobotPose : poseQuery.data;
-    const occupancyGrid = useRosbridge ? rbMap.data : occupancyQuery.data;
-    const pointCloudData = useRosbridge ? rbPointCloud.data : pointCloudQuery.data;
+    // Convert rosbridge OccupancyGrid → flat OccupancyGrid
+    const rbOccupancyGrid: OccupancyGrid | undefined = useMemo(() => {
+        if (!rbMap.data?.info) return undefined;
+        const info = rbMap.data.info;
+        const data = rbMap.data.data;
+        if (!info.width || !info.height || !data) return undefined;
 
-    // Semantic objects come from REST API regardless (they use the medkit backend)
+        return {
+            width: info.width,
+            height: info.height,
+            resolution: info.resolution,
+            origin: {
+                x: info.origin?.position?.x ?? 0,
+                y: info.origin?.position?.y ?? 0,
+            },
+            data: Array.from(data),
+        };
+    }, [rbMap.data]);
+
+    // Convert rosbridge LaserScan → PointCloudData
+    const rbPointCloudData: PointCloudData | undefined = useMemo(() => {
+        if (!rbScan.data?.ranges) return undefined;
+        const scan = rbScan.data;
+        const points = [];
+
+        for (let i = 0; i < scan.ranges.length; i++) {
+            const range = scan.ranges[i];
+            // Skip invalid ranges
+            if (!isFinite(range) || range <= 0 || range > 100) continue;
+
+            const angle = scan.angle_min + i * scan.angle_increment;
+            const x = range * Math.cos(angle);
+            const y = range * Math.sin(angle);
+
+            points.push({
+                x,
+                y,
+                z: 0, // LaserScan is 2D — all points at z=0
+                intensity: scan.intensities?.[i] ?? 0.7,
+            });
+        }
+
+        return {
+            points,
+            timestamp: new Date().toISOString(),
+            frameId: 'laser',
+        };
+    }, [rbScan.data]);
+
+    // ── Choose Data Source ──────────────────────────────────────────────────
+
+    const robotPose = useRosbridge ? rbRobotPose : poseQuery.data;
+    const occupancyGrid = useRosbridge ? rbOccupancyGrid : occupancyQuery.data;
+    const pointCloudData = useRosbridge ? rbPointCloudData : pointCloudQuery.data;
+
+    // Semantic objects from REST API (they use the medkit backend)
     const semanticObjects = semanticQuery.data || [];
 
     // Derive frontiers from exploration stats
@@ -169,10 +255,10 @@ export function useVisualizationData(
         }
         if (rbMap.error) errs.push(`Map: ${rbMap.error}`);
         if (rbPose.error) errs.push(`Pose: ${rbPose.error}`);
-        if (rbPointCloud.error) errs.push(`PointCloud: ${rbPointCloud.error}`);
+        if (rbScan.error) errs.push(`Scan: ${rbScan.error}`);
         if (semanticQuery.error) errs.push(`Semantic: ${(semanticQuery.error as Error).message}`);
         return errs;
-    }, [occupancyQuery.error, poseQuery.error, pointCloudQuery.error, semanticQuery.error, rbMap.error, rbPose.error, rbPointCloud.error, useRosbridge]);
+    }, [occupancyQuery.error, poseQuery.error, pointCloudQuery.error, semanticQuery.error, rbMap.error, rbPose.error, rbScan.error, useRosbridge]);
 
     const isAnyDataAvailable =
         !!occupancyGrid ||
@@ -181,7 +267,7 @@ export function useVisualizationData(
         !!pointCloudData;
 
     const isLoading = useRosbridge
-        ? (!rbMap.data && !rbPose.data && rbMap.isConnected)
+        ? (!rbMap.data && !rbPose.data && !rbScan.data && rbMap.isConnected)
         : (occupancyQuery.isLoading || poseQuery.isLoading || semanticQuery.isLoading || pointCloudQuery.isLoading);
 
     const dataSource: 'rosbridge' | 'rest' | 'none' = useRosbridge

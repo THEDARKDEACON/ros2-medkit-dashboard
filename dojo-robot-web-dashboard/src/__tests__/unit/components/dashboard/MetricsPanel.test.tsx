@@ -3,29 +3,35 @@ import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MetricsPanel } from '@/components/dashboard/MetricsPanel';
 
-// Mock the hooks
+// Mock all hooks
 vi.mock('@/features/api/hooks', () => ({
   useSystemHealth: vi.fn(),
-  usePerformanceMetrics: vi.fn(),
-  useSemanticObjects: vi.fn(),
-  useRobotPose: vi.fn(),
 }));
 
-import { useSystemHealth, usePerformanceMetrics, useSemanticObjects, useRobotPose } from '@/features/api/hooks';
+vi.mock('@/hooks/useRosbridgeTopic', () => ({
+  useRosbridgeTopic: vi.fn(),
+}));
 
-const mockSystemHealth = (overrides: Record<string, unknown> = {}) => {
+vi.mock('@/features/stores/rosbridgeStore', () => ({
+  useRosbridgeStore: vi.fn(),
+}));
+
+import { useSystemHealth } from '@/features/api/hooks';
+import { useRosbridgeTopic } from '@/hooks/useRosbridgeTopic';
+import { useRosbridgeStore } from '@/features/stores/rosbridgeStore';
+
+const mockHealthy = () => {
   vi.mocked(useSystemHealth).mockReturnValue({
     data: {
       systemStatus: 'healthy',
-      totalAreas: 3,
-      totalComponents: 10,
-      activeComponents: 10,
-      totalTopics: 25,
+      totalAreas: 27,
+      totalComponents: 18,
+      activeComponents: 18,
+      totalTopics: 18,
       faultCounts: { error: 0, warning: 0, info: 0 },
       areas: [],
       components: [],
       faults: [],
-      ...overrides,
     },
     isLoading: false,
     error: null,
@@ -33,187 +39,98 @@ const mockSystemHealth = (overrides: Record<string, unknown> = {}) => {
   } as any);
 };
 
-const mockPerfMetrics = (cpuVal?: number, memVal?: number, netVal?: number) => {
-  vi.mocked(usePerformanceMetrics).mockReturnValue({
-    data: cpuVal !== undefined ? {
-      cpuUsage: [{ value: cpuVal, timestamp: '' }],
-      memoryUsage: memVal !== undefined ? [{ value: memVal, timestamp: '' }] : [],
-      networkBandwidth: netVal !== undefined ? [{ value: netVal, timestamp: '' }] : [],
-      messageRates: [],
-      latency: [],
-      tfMetrics: { updateRate: 0, latency: 0, transformCount: 0 },
-      diskIO: { readBytesPerSecond: 0, writeBytesPerSecond: 0, loggingRate: 0 },
-      timestamp: new Date().toISOString(),
-    } : undefined,
-    isLoading: false,
-    error: null,
-  } as any);
+const mockRosbridge = (connected: boolean) => {
+  vi.mocked(useRosbridgeStore).mockImplementation((selector: any) => {
+    const state = { status: connected ? 'connected' : 'disconnected' };
+    return selector(state);
+  });
 };
 
-const mockRobotPose = (x?: number, y?: number, theta?: number) => {
-  vi.mocked(useRobotPose).mockReturnValue({
-    data: x !== undefined ? { x, y: y ?? 0, theta: theta ?? 0 } : undefined,
-    isLoading: false,
-    error: null,
-  } as any);
-};
-
-const mockSemantic = (objects?: Array<{ id: string; class: string; confidence: number }>) => {
-  vi.mocked(useSemanticObjects).mockReturnValue({
-    data: objects || [],
-    isLoading: false,
-    error: null,
-  } as any);
+const mockOdom = (pose?: { x: number; y: number; z: number; yaw: number }) => {
+  vi.mocked(useRosbridgeTopic).mockImplementation(((topic: string) => {
+    if (topic === '/odom' && pose) {
+      return {
+        data: {
+          pose: { pose: { position: { x: pose.x, y: pose.y, z: pose.z }, orientation: { x: 0, y: 0, z: Math.sin(pose.yaw / 2), w: Math.cos(pose.yaw / 2) } } },
+          twist: { twist: { linear: { x: 0.5, y: 0, z: 0 }, angular: { x: 0, y: 0, z: 0.1 } } },
+        },
+        isConnected: true,
+        lastUpdate: Date.now(),
+        messageCount: 42,
+        error: undefined,
+      };
+    }
+    return { data: undefined, isConnected: true, lastUpdate: undefined, messageCount: 0, error: undefined };
+  }) as any);
 };
 
 function renderWithProviders(component: React.ReactElement) {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      {component}
-    </QueryClientProvider>
-  );
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(<QueryClientProvider client={queryClient}>{component}</QueryClientProvider>);
 }
 
 describe('MetricsPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPerfMetrics();
-    mockRobotPose();
-    mockSemantic();
+    mockRosbridge(false);
+    vi.mocked(useRosbridgeTopic).mockReturnValue({
+      data: undefined, isConnected: false, lastUpdate: undefined, messageCount: 0, error: undefined,
+    } as any);
   });
 
-  it('should display loading state while fetching data', () => {
+  it('should display loading state while fetching health data', () => {
     vi.mocked(useSystemHealth).mockReturnValue({
-      data: undefined as any,
-      isLoading: true,
-      error: null,
-      refetch: vi.fn(),
+      data: undefined as any, isLoading: true, error: null, refetch: vi.fn(),
     });
-
     renderWithProviders(<MetricsPanel />);
     expect(screen.getByText('Loading metrics...')).toBeInTheDocument();
   });
 
-  it('should display error message when fetch fails', () => {
+  it('should display error message when health fetch fails', () => {
     vi.mocked(useSystemHealth).mockReturnValue({
-      data: undefined as any,
-      isLoading: false,
-      error: new Error('Network error'),
-      refetch: vi.fn(),
+      data: undefined as any, isLoading: false, error: new Error('fail'), refetch: vi.fn(),
     });
-
     renderWithProviders(<MetricsPanel />);
     expect(screen.getByText('Unable to load metrics data')).toBeInTheDocument();
   });
 
-  it('should display performance metrics section', () => {
-    mockSystemHealth();
-    mockPerfMetrics(45.2, 62.8, 1.2);
+  it('should display robot position from /odom topic', () => {
+    mockHealthy();
+    mockRosbridge(true);
+    mockOdom({ x: 2.5, y: 1.8, z: 0.0, yaw: 1.57 });
 
     renderWithProviders(<MetricsPanel />);
 
-    expect(screen.getByText('Performance Metrics')).toBeInTheDocument();
-    expect(screen.getByText('CPU Usage')).toBeInTheDocument();
-    expect(screen.getByText('Memory Usage')).toBeInTheDocument();
-    expect(screen.getByText('Network Activity')).toBeInTheDocument();
+    expect(screen.getByText('Robot Position & Velocity')).toBeInTheDocument();
+    expect(screen.getByText('2.500 m')).toBeInTheDocument();
+    expect(screen.getByText('1.800 m')).toBeInTheDocument();
   });
 
-  it('should display real CPU usage percentage', () => {
-    mockSystemHealth();
-    mockPerfMetrics(45.2, 62.8, 1.2);
+  it('should show waiting message when not connected', () => {
+    mockHealthy();
+    mockRosbridge(false);
 
     renderWithProviders(<MetricsPanel />);
-    expect(screen.getByText('45.2%')).toBeInTheDocument();
+    expect(screen.getByText('Connect to rosbridge to see robot position')).toBeInTheDocument();
   });
 
-  it('should display real memory usage percentage', () => {
-    mockSystemHealth();
-    mockPerfMetrics(45.2, 62.8, 1.2);
+  it('should display navigation section with health data', () => {
+    mockHealthy();
 
     renderWithProviders(<MetricsPanel />);
-    expect(screen.getByText('62.8%')).toBeInTheDocument();
+    expect(screen.getByText('Navigation')).toBeInTheDocument();
+    expect(screen.getByText('27')).toBeInTheDocument(); // areas
+    // 18 appears for both components and topics
+    const eighteens = screen.getAllByText('18');
+    expect(eighteens.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('should display real network activity', () => {
-    mockSystemHealth();
-    mockPerfMetrics(45.2, 62.8, 1.2);
+  it('should display all main sections', () => {
+    mockHealthy();
 
     renderWithProviders(<MetricsPanel />);
-    expect(screen.getByText('1.2 MB/s')).toBeInTheDocument();
-  });
-
-  it('should show dash when performance data is unavailable', () => {
-    mockSystemHealth();
-    mockPerfMetrics(); // no data
-
-    renderWithProviders(<MetricsPanel />);
-
-    // All three metrics should show "—"
-    const dashes = screen.getAllByText('—');
-    expect(dashes.length).toBeGreaterThanOrEqual(3);
-  });
-
-  it('should display robot position from real pose data', () => {
-    mockSystemHealth();
-    mockRobotPose(2.5, 1.8, 1.57);
-
-    renderWithProviders(<MetricsPanel />);
-
-    expect(screen.getByText('Robot Position & Orientation')).toBeInTheDocument();
-    expect(screen.getByText('2.50 m')).toBeInTheDocument();
-    expect(screen.getByText('1.80 m')).toBeInTheDocument();
-    expect(screen.getByText('1.57 rad')).toBeInTheDocument();
-  });
-
-  it('should show unavailable message when pose data missing', () => {
-    mockSystemHealth();
-    mockRobotPose(); // no data
-
-    renderWithProviders(<MetricsPanel />);
-    expect(screen.getByText(/Robot pose unavailable/i)).toBeInTheDocument();
-  });
-
-  it('should display exploration progress section', () => {
-    mockSystemHealth();
-
-    renderWithProviders(<MetricsPanel />);
-    expect(screen.getByText('Exploration Progress')).toBeInTheDocument();
-  });
-
-  it('should display semantic object detection section', () => {
-    mockSystemHealth();
-
-    renderWithProviders(<MetricsPanel />);
-    expect(screen.getByText('Semantic Object Detection')).toBeInTheDocument();
-    expect(screen.getByText('Total Objects Detected')).toBeInTheDocument();
-  });
-
-  it('should display real semantic object counts', () => {
-    mockSystemHealth();
-    mockSemantic([
-      { id: '1', class: 'chair', confidence: 0.9 },
-      { id: '2', class: 'chair', confidence: 0.85 },
-      { id: '3', class: 'person', confidence: 0.92 },
-    ]);
-
-    renderWithProviders(<MetricsPanel />);
-
-    expect(screen.getByText('3')).toBeInTheDocument(); // total
-    expect(screen.getByText('chair')).toBeInTheDocument();
-    expect(screen.getByText('person')).toBeInTheDocument();
-  });
-
-  it('should display all four main sections', () => {
-    mockSystemHealth();
-
-    renderWithProviders(<MetricsPanel />);
-
-    expect(screen.getByText('Performance Metrics')).toBeInTheDocument();
-    expect(screen.getByText('Robot Position & Orientation')).toBeInTheDocument();
-    expect(screen.getByText('Exploration Progress')).toBeInTheDocument();
-    expect(screen.getByText('Semantic Object Detection')).toBeInTheDocument();
+    expect(screen.getByText('Robot Position & Velocity')).toBeInTheDocument();
+    expect(screen.getByText('System Diagnostics')).toBeInTheDocument();
+    expect(screen.getByText('Navigation')).toBeInTheDocument();
   });
 });

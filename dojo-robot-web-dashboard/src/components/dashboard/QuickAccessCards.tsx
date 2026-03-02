@@ -1,45 +1,76 @@
 import { Navigation, Eye, Shield, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useSystemHealth, useSemanticObjects } from '@/features/api/hooks';
+import { useSystemHealth } from '@/features/api/hooks';
+import { useRosbridgeTopic } from '@/hooks/useRosbridgeTopic';
+import { useRosbridgeStore } from '@/features/stores/rosbridgeStore';
+
+/** nav_msgs/Odometry simplified shape */
+interface OdometryMsg {
+  twist: {
+    twist: {
+      linear: { x: number; y: number; z: number };
+    };
+  };
+}
+
+/** sensor_msgs/LaserScan simplified shape */
+interface LaserScanMsg {
+  ranges: number[];
+  angle_min: number;
+  angle_max: number;
+}
 
 /**
  * QuickAccessCards Component
- * 
+ *
  * Provides quick-access cards linking to major subsystems:
- * - Navigation subsystem (link to visualizations/map)
- * - Perception subsystem (link to semantic objects)
- * - Safety subsystem (link to fault monitoring)
- * 
- * Each card displays:
- * - Appropriate icon
- * - Subsystem name
- * - Brief description
- * - Key metrics relevant to that subsystem
- * - Visual status indicator
- * 
+ * - Navigation — live velocity from /odom
+ * - Perception — live scan stats from /scan
+ * - Safety — fault counts from REST API
+ *
  * Requirements: 8.9
  */
 export function QuickAccessCards() {
   const { data, isLoading } = useSystemHealth();
-  const { data: semanticData } = useSemanticObjects({ refetchInterval: 5000 });
+  const rosbridgeStatus = useRosbridgeStore((s) => s.status);
+  const isRosbridgeConnected = rosbridgeStatus === 'connected';
 
-  // Navigation metrics — real data when available
+  // Subscribe to /odom for navigation velocity
+  const odom = useRosbridgeTopic<OdometryMsg>('/odom', {
+    type: 'nav_msgs/msg/Odometry',
+    throttleRate: 1000,
+    enabled: isRosbridgeConnected,
+  });
+
+  // Subscribe to /scan for perception stats
+  const scan = useRosbridgeTopic<LaserScanMsg>('/scan', {
+    type: 'sensor_msgs/msg/LaserScan',
+    throttleRate: 2000,
+    enabled: isRosbridgeConnected,
+  });
+
+  // Navigation metrics from live /odom
+  const linearSpeed = odom.data?.twist?.twist?.linear
+    ? Math.sqrt(
+      odom.data.twist.twist.linear.x ** 2 +
+      odom.data.twist.twist.linear.y ** 2
+    )
+    : null;
+
   const navigationMetrics = {
-    status: 'active' as const,
-    activeGoals: '—', // Requires active navigation component
-    pathLength: '—',
+    status: (odom.data ? 'active' : 'healthy') as 'active' | 'healthy',
+    speed: linearSpeed !== null ? `${linearSpeed.toFixed(2)} m/s` : '—',
+    odomMsgs: odom.messageCount,
   };
 
-  // Perception metrics — from real semantic object detections
-  const detectedCount = semanticData?.length ?? 0;
-  const avgConfidence = semanticData?.length
-    ? semanticData.reduce((sum, obj) => sum + obj.confidence, 0) / semanticData.length
-    : 0;
+  // Perception metrics from live /scan
+  const validRanges = scan.data?.ranges?.filter(r => isFinite(r) && r > 0) ?? [];
+  const minRange = validRanges.length > 0 ? Math.min(...validRanges) : null;
 
   const perceptionMetrics = {
-    status: detectedCount > 0 ? ('active' as const) : ('active' as const),
-    detectedObjects: detectedCount,
-    confidence: avgConfidence,
+    status: (scan.data ? 'active' : 'healthy') as 'active' | 'healthy',
+    scanPoints: scan.data?.ranges?.length ?? 0,
+    minRange: minRange !== null ? `${minRange.toFixed(2)} m` : '—',
   };
 
   const safetyMetrics = {
@@ -62,15 +93,15 @@ export function QuickAccessCards() {
       borderColor: 'border-blue-500/20',
       hoverBorderColor: 'hover:border-blue-500/50',
       metrics: [
-        { label: 'Active Goals', value: navigationMetrics.activeGoals },
-        { label: 'Path Length', value: `${navigationMetrics.pathLength}m` },
+        { label: 'Speed', value: navigationMetrics.speed },
+        { label: 'Odom Messages', value: navigationMetrics.odomMsgs },
       ],
       status: navigationMetrics.status,
     },
     {
       id: 'perception',
       title: 'Perception',
-      description: 'Semantic object detection and scene understanding',
+      description: 'LiDAR scanning and obstacle detection',
       icon: Eye,
       link: '/visualizations',
       iconColor: 'text-purple-500',
@@ -78,8 +109,8 @@ export function QuickAccessCards() {
       borderColor: 'border-purple-500/20',
       hoverBorderColor: 'hover:border-purple-500/50',
       metrics: [
-        { label: 'Detected Objects', value: perceptionMetrics.detectedObjects },
-        { label: 'Confidence', value: `${(perceptionMetrics.confidence * 100).toFixed(0)}%` },
+        { label: 'Scan Points', value: perceptionMetrics.scanPoints },
+        { label: 'Min Range', value: perceptionMetrics.minRange },
       ],
       status: perceptionMetrics.status,
     },

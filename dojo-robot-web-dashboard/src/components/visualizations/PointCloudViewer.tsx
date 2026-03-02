@@ -124,13 +124,14 @@ export function PointCloudViewer({
 }: PointCloudViewerProps) {
   // Optimize for large point clouds by limiting rendering
   const optimizedPoints = useMemo(() => {
+    const pts = data.points ?? [];
     const maxPoints = 100000; // Limit for performance
-    if (data.points.length > maxPoints) {
+    if (pts.length > maxPoints) {
       // Downsample by taking every nth point
-      const step = Math.ceil(data.points.length / maxPoints);
-      return data.points.filter((_, i) => i % step === 0);
+      const step = Math.ceil(pts.length / maxPoints);
+      return pts.filter((_, i) => i % step === 0);
     }
-    return data.points;
+    return pts;
   }, [data.points]);
 
   return (
