@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   Eye,
   Activity,
+  Scan,
 } from 'lucide-react';
 
 interface NavItem {
@@ -26,6 +27,7 @@ const navItems: NavItem[] = [
   { name: 'Faults', icon: AlertTriangle, path: '/faults' },
   { name: 'Visualizations', icon: Eye, path: '/visualizations' },
   { name: 'Performance', icon: Activity, path: '/performance' },
+  { name: 'Topic Explorer', icon: Scan, path: '/topic-explorer' },
 ];
 
 export function Sidebar() {
@@ -34,9 +36,8 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`fixed left-0 top-16 h-[calc(100vh-4rem-2.5rem)] border-r bg-card transition-all duration-300 ${
-        sidebarCollapsed ? 'w-16' : 'w-64'
-      }`}
+      className={`fixed left-0 top-16 h-[calc(100vh-4rem-2.5rem)] border-r bg-card transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'
+        }`}
       role="navigation"
       aria-label="Main navigation"
     >
@@ -48,9 +49,8 @@ export function Sidebar() {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring ${
-                isActive ? 'bg-accent text-accent-foreground' : ''
-              }`}
+              className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus:ring-2 focus:ring-ring ${isActive ? 'bg-accent text-accent-foreground' : ''
+                }`}
               title={sidebarCollapsed ? item.name : undefined}
               aria-label={item.name}
               aria-current={isActive ? 'page' : undefined}

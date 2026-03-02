@@ -1,5 +1,5 @@
 import { Cpu, MemoryStick, Network, MapPin, Compass, Map, Eye } from 'lucide-react';
-import { useSystemHealth } from '@/features/api/hooks';
+import { useSystemHealth, usePerformanceMetrics, useSemanticObjects, useRobotPose } from '@/features/api/hooks';
 import { LoadingState } from '@/components/common/LoadingState';
 
 /**
@@ -11,12 +11,16 @@ import { LoadingState } from '@/components/common/LoadingState';
  * - Exploration progress and mapping statistics (Requirement 8.7)
  * - Semantic object detection counts (Requirement 8.8)
  * 
+ * All data is fetched from real-time backend hooks.
  * Requirements: 8.5, 8.6, 8.7, 8.8
  */
 export function MetricsPanel() {
-  const { data, isLoading, error } = useSystemHealth();
+  const { data: healthData, isLoading: healthLoading, error: healthError } = useSystemHealth();
+  const { data: perfData } = usePerformanceMetrics({ refetchInterval: 5000 });
+  const { data: semanticData } = useSemanticObjects({ refetchInterval: 5000 });
+  const { data: poseData } = useRobotPose({ refetchInterval: 1000 });
 
-  if (isLoading) {
+  if (healthLoading) {
     return (
       <div className="p-6">
         <LoadingState message="Loading metrics..." />
@@ -24,7 +28,7 @@ export function MetricsPanel() {
     );
   }
 
-  if (error) {
+  if (healthError) {
     return (
       <div className="rounded-lg border bg-card p-6">
         <p className="text-sm text-muted-foreground">
@@ -34,39 +38,40 @@ export function MetricsPanel() {
     );
   }
 
-  if (!data) {
+  if (!healthData) {
     return null;
   }
 
-  // Mock data for metrics that would come from topic data in a real implementation
-  // In production, these would be fetched from specific topics
-  const performanceMetrics = {
-    cpuUsage: 45.2, // percentage
-    memoryUsage: 62.8, // percentage
-    networkActivity: 1.2, // MB/s
-  };
+  // Extract latest performance metrics from time-series arrays
+  const latestCpu = perfData?.cpuUsage?.length
+    ? perfData.cpuUsage[perfData.cpuUsage.length - 1]
+    : null;
+  const latestMem = perfData?.memoryUsage?.length
+    ? perfData.memoryUsage[perfData.memoryUsage.length - 1]
+    : null;
+  const latestNet = perfData?.networkBandwidth?.length
+    ? perfData.networkBandwidth[perfData.networkBandwidth.length - 1]
+    : null;
 
-  const robotPose = {
-    position: { x: 2.5, y: 1.8, z: 0.0 },
-    orientation: { roll: 0.0, pitch: 0.0, yaw: 1.57 }, // radians
-  };
+  const cpuValue = latestCpu && typeof latestCpu === 'object' && 'value' in latestCpu
+    ? (latestCpu as { value: number }).value : null;
+  const memValue = latestMem && typeof latestMem === 'object' && 'value' in latestMem
+    ? (latestMem as { value: number }).value : null;
+  const netValue = latestNet && typeof latestNet === 'object' && 'value' in latestNet
+    ? (latestNet as { value: number }).value : null;
 
-  const explorationStats = {
-    progress: 68, // percentage
-    areaCovered: 45.3, // square meters
-    frontiers: 12,
-  };
+  // Robot pose from real hook
+  const robotX = poseData?.x ?? null;
+  const robotY = poseData?.y ?? null;
+  const robotTheta = poseData?.theta ?? null;
 
-  const semanticObjects = {
-    total: 23,
-    byType: {
-      person: 3,
-      chair: 8,
-      table: 4,
-      door: 5,
-      other: 3,
-    },
-  };
+  // Semantic objects from real hook
+  const semanticTotal = semanticData?.length ?? 0;
+  const semanticByType: Record<string, number> = {};
+  semanticData?.forEach((obj) => {
+    const cls = obj.class || 'unknown';
+    semanticByType[cls] = (semanticByType[cls] || 0) + 1;
+  });
 
   return (
     <div className="space-y-6">
@@ -80,27 +85,32 @@ export function MetricsPanel() {
           <MetricItem
             icon={Cpu}
             label="CPU Usage"
-            value={`${performanceMetrics.cpuUsage}%`}
+            value={cpuValue !== null ? `${cpuValue.toFixed(1)}%` : '—'}
             iconColor="text-blue-500"
             bgColor="bg-blue-500/10"
-            progressValue={performanceMetrics.cpuUsage}
+            progressValue={cpuValue ?? undefined}
           />
           <MetricItem
             icon={MemoryStick}
             label="Memory Usage"
-            value={`${performanceMetrics.memoryUsage}%`}
+            value={memValue !== null ? `${memValue.toFixed(1)}%` : '—'}
             iconColor="text-purple-500"
             bgColor="bg-purple-500/10"
-            progressValue={performanceMetrics.memoryUsage}
+            progressValue={memValue ?? undefined}
           />
           <MetricItem
             icon={Network}
             label="Network Activity"
-            value={`${performanceMetrics.networkActivity} MB/s`}
+            value={netValue !== null ? `${netValue.toFixed(1)} MB/s` : '—'}
             iconColor="text-green-500"
             bgColor="bg-green-500/10"
           />
         </div>
+        {cpuValue === null && (
+          <p className="text-xs text-muted-foreground mt-3 italic">
+            Performance data unavailable — ensure the performance endpoint is running
+          </p>
+        )}
       </div>
 
       {/* Robot Position & Orientation Section */}
@@ -109,48 +119,46 @@ export function MetricsPanel() {
           <MapPin className="h-5 w-5" aria-hidden="true" />
           Robot Position & Orientation
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-cyan-500" aria-hidden="true" />
-              <span className="text-sm font-medium">Position</span>
-            </div>
-            <div className="pl-6 space-y-1 text-sm text-muted-foreground">
-              <div className="flex justify-between">
-                <span>X:</span>
-                <span className="font-mono">{robotPose.position.x.toFixed(2)} m</span>
+        {robotX !== null ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-cyan-500" aria-hidden="true" />
+                <span className="text-sm font-medium">Position</span>
               </div>
-              <div className="flex justify-between">
-                <span>Y:</span>
-                <span className="font-mono">{robotPose.position.y.toFixed(2)} m</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Z:</span>
-                <span className="font-mono">{robotPose.position.z.toFixed(2)} m</span>
+              <div className="pl-6 space-y-1 text-sm text-muted-foreground">
+                <div className="flex justify-between">
+                  <span>X:</span>
+                  <span className="font-mono">{robotX.toFixed(2)} m</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Y:</span>
+                  <span className="font-mono">{(robotY ?? 0).toFixed(2)} m</span>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Compass className="h-4 w-4 text-orange-500" aria-hidden="true" />
-              <span className="text-sm font-medium">Orientation</span>
-            </div>
-            <div className="pl-6 space-y-1 text-sm text-muted-foreground">
-              <div className="flex justify-between">
-                <span>Roll:</span>
-                <span className="font-mono">{robotPose.orientation.roll.toFixed(2)} rad</span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Compass className="h-4 w-4 text-orange-500" aria-hidden="true" />
+                <span className="text-sm font-medium">Orientation</span>
               </div>
-              <div className="flex justify-between">
-                <span>Pitch:</span>
-                <span className="font-mono">{robotPose.orientation.pitch.toFixed(2)} rad</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Yaw:</span>
-                <span className="font-mono">{robotPose.orientation.yaw.toFixed(2)} rad</span>
+              <div className="pl-6 space-y-1 text-sm text-muted-foreground">
+                <div className="flex justify-between">
+                  <span>Yaw:</span>
+                  <span className="font-mono">{(robotTheta ?? 0).toFixed(2)} rad</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Heading:</span>
+                  <span className="font-mono">{((robotTheta ?? 0) * 180 / Math.PI).toFixed(1)}°</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">
+            Robot pose unavailable — connect to the robot to see position data
+          </p>
+        )}
       </div>
 
       {/* Exploration Progress Section */}
@@ -159,37 +167,10 @@ export function MetricsPanel() {
           <Map className="h-5 w-5" aria-hidden="true" />
           Exploration Progress
         </h3>
-        <div className="space-y-4">
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium">Overall Progress</span>
-              <span className="text-sm font-bold text-blue-500">
-                {explorationStats.progress}%
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-              <div
-                className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${explorationStats.progress}%` }}
-                role="progressbar"
-                aria-valuenow={explorationStats.progress}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label="Exploration progress"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4 pt-2">
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Area Covered</p>
-              <p className="text-xl font-bold">{explorationStats.areaCovered} m²</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">Active Frontiers</p>
-              <p className="text-xl font-bold">{explorationStats.frontiers}</p>
-            </div>
-          </div>
-        </div>
+        <p className="text-sm text-muted-foreground italic">
+          Exploration data available when a navigation component is active.
+          View detailed exploration on the Visualizations page.
+        </p>
       </div>
 
       {/* Semantic Object Detection Section */}
@@ -202,17 +183,23 @@ export function MetricsPanel() {
           <div className="flex items-center justify-between pb-2 border-b">
             <span className="text-sm font-medium">Total Objects Detected</span>
             <span className="text-2xl font-bold text-purple-500">
-              {semanticObjects.total}
+              {semanticTotal}
             </span>
           </div>
-          <div className="space-y-2">
-            {Object.entries(semanticObjects.byType).map(([type, count]) => (
-              <div key={type} className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground capitalize">{type}</span>
-                <span className="text-sm font-semibold">{count}</span>
-              </div>
-            ))}
-          </div>
+          {Object.keys(semanticByType).length > 0 ? (
+            <div className="space-y-2">
+              {Object.entries(semanticByType).map(([type, count]) => (
+                <div key={type} className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground capitalize">{type}</span>
+                  <span className="text-sm font-semibold">{count}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground italic">
+              No objects detected yet — ensure YOLO perception is running
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -252,13 +239,12 @@ function MetricItem({
       {progressValue !== undefined && (
         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 pl-10">
           <div
-            className={`h-1.5 rounded-full transition-all duration-300 ${
-              progressValue > 80
-                ? 'bg-red-500'
-                : progressValue > 60
+            className={`h-1.5 rounded-full transition-all duration-300 ${progressValue > 80
+              ? 'bg-red-500'
+              : progressValue > 60
                 ? 'bg-yellow-500'
                 : 'bg-green-500'
-            }`}
+              }`}
             style={{ width: `${progressValue}%` }}
             role="progressbar"
             aria-valuenow={progressValue}

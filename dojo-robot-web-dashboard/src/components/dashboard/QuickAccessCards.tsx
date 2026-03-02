@@ -1,6 +1,6 @@
 import { Navigation, Eye, Shield, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useSystemHealth } from '@/features/api/hooks';
+import { useSystemHealth, useSemanticObjects } from '@/features/api/hooks';
 
 /**
  * QuickAccessCards Component
@@ -21,24 +21,31 @@ import { useSystemHealth } from '@/features/api/hooks';
  */
 export function QuickAccessCards() {
   const { data, isLoading } = useSystemHealth();
+  const { data: semanticData } = useSemanticObjects({ refetchInterval: 5000 });
 
-  // Calculate metrics for each subsystem
+  // Navigation metrics — real data when available
   const navigationMetrics = {
     status: 'active' as const,
-    activeGoals: 1, // Mock data - would come from navigation topics
-    pathLength: 12.5, // meters
+    activeGoals: '—', // Requires active navigation component
+    pathLength: '—',
   };
 
+  // Perception metrics — from real semantic object detections
+  const detectedCount = semanticData?.length ?? 0;
+  const avgConfidence = semanticData?.length
+    ? semanticData.reduce((sum, obj) => sum + obj.confidence, 0) / semanticData.length
+    : 0;
+
   const perceptionMetrics = {
-    status: 'active' as const,
-    detectedObjects: 23, // Mock data - would come from semantic object topics
-    confidence: 0.87,
+    status: detectedCount > 0 ? ('active' as const) : ('active' as const),
+    detectedObjects: detectedCount,
+    confidence: avgConfidence,
   };
 
   const safetyMetrics = {
-    status: data?.faultCounts.error ? ('critical' as const) : 
-            data?.faultCounts.warning ? ('warning' as const) : 
-            ('healthy' as const),
+    status: data?.faultCounts.error ? ('critical' as const) :
+      data?.faultCounts.warning ? ('warning' as const) :
+        ('healthy' as const),
     activeFaults: (data?.faultCounts.error || 0) + (data?.faultCounts.warning || 0),
     lastCheck: 'Just now',
   };
@@ -82,18 +89,18 @@ export function QuickAccessCards() {
       description: 'Fault monitoring and system diagnostics',
       icon: Shield,
       link: '/faults',
-      iconColor: safetyMetrics.status === 'critical' ? 'text-red-500' : 
-                 safetyMetrics.status === 'warning' ? 'text-yellow-500' : 
-                 'text-green-500',
-      bgColor: safetyMetrics.status === 'critical' ? 'bg-red-500/10' : 
-               safetyMetrics.status === 'warning' ? 'bg-yellow-500/10' : 
-               'bg-green-500/10',
-      borderColor: safetyMetrics.status === 'critical' ? 'border-red-500/20' : 
-                   safetyMetrics.status === 'warning' ? 'border-yellow-500/20' : 
-                   'border-green-500/20',
-      hoverBorderColor: safetyMetrics.status === 'critical' ? 'hover:border-red-500/50' : 
-                        safetyMetrics.status === 'warning' ? 'hover:border-yellow-500/50' : 
-                        'hover:border-green-500/50',
+      iconColor: safetyMetrics.status === 'critical' ? 'text-red-500' :
+        safetyMetrics.status === 'warning' ? 'text-yellow-500' :
+          'text-green-500',
+      bgColor: safetyMetrics.status === 'critical' ? 'bg-red-500/10' :
+        safetyMetrics.status === 'warning' ? 'bg-yellow-500/10' :
+          'bg-green-500/10',
+      borderColor: safetyMetrics.status === 'critical' ? 'border-red-500/20' :
+        safetyMetrics.status === 'warning' ? 'border-yellow-500/20' :
+          'border-green-500/20',
+      hoverBorderColor: safetyMetrics.status === 'critical' ? 'hover:border-red-500/50' :
+        safetyMetrics.status === 'warning' ? 'hover:border-yellow-500/50' :
+          'hover:border-green-500/50',
       metrics: [
         { label: 'Active Faults', value: safetyMetrics.activeFaults },
         { label: 'Last Check', value: safetyMetrics.lastCheck },

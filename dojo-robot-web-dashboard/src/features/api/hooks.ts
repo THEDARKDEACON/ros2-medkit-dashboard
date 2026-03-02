@@ -2529,3 +2529,108 @@ export const useExportPerformanceData = () => {
     },
   });
 };
+
+// Import visualization types for new hooks
+import type { OccupancyGrid, RobotPose, PointCloudData } from '../../types/visualization';
+
+/**
+ * Fetch occupancy grid (SLAM map) data
+ *
+ * Polls the backend for the latest occupancy grid map data.
+ * Falls back gracefully when the endpoint is unavailable.
+ *
+ * Cache configuration:
+ * - staleTime: 0 (always consider stale for real-time data)
+ * - gcTime: 1 minute
+ * - refetchInterval: Configurable (default 2000ms)
+ *
+ * @param options - Configuration options
+ * @returns React Query result with OccupancyGrid data
+ */
+export const useOccupancyGrid = (options?: {
+  refetchInterval?: number;
+  enabled?: boolean;
+}) => {
+  const { refetchInterval = 2000, enabled = true } = options || {};
+
+  return useQuery({
+    queryKey: ['visualization', 'occupancy-grid'],
+    queryFn: async () => {
+      const response = await apiClient.get<OccupancyGrid>('/map');
+      return response.data;
+    },
+    staleTime: 0,
+    gcTime: 1 * 60 * 1000,
+    refetchInterval: enabled ? refetchInterval : false,
+    enabled,
+    retry: 1,
+  });
+};
+
+/**
+ * Fetch robot pose (position + orientation)
+ *
+ * Polls the backend for the current robot pose at high frequency
+ * for smooth map visualization updates.
+ *
+ * Cache configuration:
+ * - staleTime: 0 (always consider stale)
+ * - gcTime: 30 seconds
+ * - refetchInterval: Configurable (default 200ms for smooth updates)
+ *
+ * @param options - Configuration options
+ * @returns React Query result with RobotPose data
+ */
+export const useRobotPose = (options?: {
+  refetchInterval?: number;
+  enabled?: boolean;
+}) => {
+  const { refetchInterval = 200, enabled = true } = options || {};
+
+  return useQuery({
+    queryKey: ['visualization', 'robot-pose'],
+    queryFn: async () => {
+      const response = await apiClient.get<RobotPose>('/robot/pose');
+      return response.data;
+    },
+    staleTime: 0,
+    gcTime: 30 * 1000,
+    refetchInterval: enabled ? refetchInterval : false,
+    enabled,
+    retry: 1,
+  });
+};
+
+/**
+ * Fetch point cloud data
+ *
+ * Polls the backend for the latest LiDAR point cloud data.
+ * Lower frequency than pose due to higher data volume.
+ *
+ * Cache configuration:
+ * - staleTime: 0 (always consider stale)
+ * - gcTime: 30 seconds
+ * - refetchInterval: Configurable (default 1000ms)
+ *
+ * @param options - Configuration options
+ * @returns React Query result with PointCloudData
+ */
+export const usePointCloudData = (options?: {
+  refetchInterval?: number;
+  enabled?: boolean;
+}) => {
+  const { refetchInterval = 1000, enabled = true } = options || {};
+
+  return useQuery({
+    queryKey: ['visualization', 'point-cloud'],
+    queryFn: async () => {
+      const response = await apiClient.get<PointCloudData>('/point-cloud');
+      return response.data;
+    },
+    staleTime: 0,
+    gcTime: 30 * 1000,
+    refetchInterval: enabled ? refetchInterval : false,
+    enabled,
+    retry: 1,
+  });
+};

@@ -8,6 +8,11 @@ import * as hooks from '@/features/api/hooks';
 // Mock the API hooks
 vi.mock('@/features/api/hooks', () => ({
   useSystemHealth: vi.fn(),
+  useSemanticObjects: vi.fn().mockReturnValue({
+    data: [],
+    isLoading: false,
+    error: null,
+  }),
 }));
 
 const mockUseSystemHealth = hooks.useSystemHealth as ReturnType<typeof vi.fn>;
@@ -49,7 +54,7 @@ describe('QuickAccessCards', () => {
     });
 
     renderWithProviders(<QuickAccessCards />);
-    
+
     expect(screen.getByText('Navigation')).toBeInTheDocument();
   });
 
@@ -72,7 +77,7 @@ describe('QuickAccessCards', () => {
     });
 
     renderWithProviders(<QuickAccessCards />);
-    
+
     // Check all three subsystem cards are present
     expect(screen.getByText('Navigation')).toBeInTheDocument();
     expect(screen.getByText('Perception')).toBeInTheDocument();
@@ -98,7 +103,7 @@ describe('QuickAccessCards', () => {
     });
 
     renderWithProviders(<QuickAccessCards />);
-    
+
     expect(screen.getByText('Path planning and autonomous navigation')).toBeInTheDocument();
     expect(screen.getByText('Semantic object detection and scene understanding')).toBeInTheDocument();
     expect(screen.getByText('Fault monitoring and system diagnostics')).toBeInTheDocument();
@@ -123,11 +128,11 @@ describe('QuickAccessCards', () => {
     });
 
     renderWithProviders(<QuickAccessCards />);
-    
+
     const navigationCard = screen.getByLabelText('Navigate to Navigation subsystem');
     const perceptionCard = screen.getByLabelText('Navigate to Perception subsystem');
     const safetyCard = screen.getByLabelText('Navigate to Safety subsystem');
-    
+
     expect(navigationCard).toHaveAttribute('href', '/visualizations');
     expect(perceptionCard).toHaveAttribute('href', '/visualizations');
     expect(safetyCard).toHaveAttribute('href', '/faults');
@@ -152,15 +157,15 @@ describe('QuickAccessCards', () => {
     });
 
     renderWithProviders(<QuickAccessCards />);
-    
+
     // Navigation metrics
     expect(screen.getByText('Active Goals')).toBeInTheDocument();
     expect(screen.getByText('Path Length')).toBeInTheDocument();
-    
+
     // Perception metrics
     expect(screen.getByText('Detected Objects')).toBeInTheDocument();
     expect(screen.getByText('Confidence')).toBeInTheDocument();
-    
+
     // Safety metrics
     expect(screen.getByText('Active Faults')).toBeInTheDocument();
     expect(screen.getByText('Last Check')).toBeInTheDocument();
@@ -185,7 +190,7 @@ describe('QuickAccessCards', () => {
     });
 
     renderWithProviders(<QuickAccessCards />);
-    
+
     // Should show 5 active faults (2 errors + 3 warnings)
     const safetySection = screen.getByText('Safety').closest('a');
     expect(safetySection).toHaveTextContent('5');
@@ -200,7 +205,7 @@ describe('QuickAccessCards', () => {
     });
 
     renderWithProviders(<QuickAccessCards />);
-    
+
     // Should show loading indicators
     const loadingIndicators = screen.getAllByText('...');
     expect(loadingIndicators.length).toBeGreaterThan(0);
@@ -225,16 +230,16 @@ describe('QuickAccessCards', () => {
     });
 
     renderWithProviders(<QuickAccessCards />);
-    
+
     const navigationCard = screen.getByLabelText('Navigate to Navigation subsystem');
     const perceptionCard = screen.getByLabelText('Navigate to Perception subsystem');
     const safetyCard = screen.getByLabelText('Navigate to Safety subsystem');
-    
+
     // Cards should be links
     expect(navigationCard.tagName).toBe('A');
     expect(perceptionCard.tagName).toBe('A');
     expect(safetyCard.tagName).toBe('A');
-    
+
     // Cards should have aria-labels
     expect(navigationCard).toHaveAttribute('aria-label');
     expect(perceptionCard).toHaveAttribute('aria-label');
@@ -260,7 +265,7 @@ describe('QuickAccessCards', () => {
     });
 
     renderWithProviders(<QuickAccessCards />);
-    
+
     // Check for status indicators (should have role="status")
     const statusIndicators = screen.getAllByRole('status');
     expect(statusIndicators.length).toBeGreaterThanOrEqual(3);
@@ -285,7 +290,7 @@ describe('QuickAccessCards', () => {
     });
 
     renderWithProviders(<QuickAccessCards />);
-    
+
     const safetyStatus = screen.getByLabelText('Safety status: critical');
     expect(safetyStatus).toBeInTheDocument();
   });
@@ -309,7 +314,7 @@ describe('QuickAccessCards', () => {
     });
 
     renderWithProviders(<QuickAccessCards />);
-    
+
     const safetyStatus = screen.getByLabelText('Safety status: warning');
     expect(safetyStatus).toBeInTheDocument();
   });
@@ -333,7 +338,7 @@ describe('QuickAccessCards', () => {
     });
 
     renderWithProviders(<QuickAccessCards />);
-    
+
     const safetyStatus = screen.getByLabelText('Safety status: healthy');
     expect(safetyStatus).toBeInTheDocument();
   });

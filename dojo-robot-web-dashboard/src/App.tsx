@@ -41,6 +41,11 @@ const Performance = lazy(() =>
 const Settings = lazy(() =>
   import('./pages/Settings').then((module) => ({ default: module.Settings }))
 );
+const TopicExplorer = lazy(() =>
+  import('./pages/TopicExplorer').then((module) => ({
+    default: module.TopicExplorer,
+  }))
+);
 
 // Loading fallback component
 function LoadingFallback() {
@@ -123,6 +128,10 @@ const router = createBrowserRouter([
       {
         path: 'settings',
         element: <Settings />,
+      },
+      {
+        path: 'topic-explorer',
+        element: <TopicExplorer />,
       },
     ],
   },

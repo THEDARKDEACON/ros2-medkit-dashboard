@@ -7,3 +7,4 @@ export { Faults } from './Faults';
 export { Visualizations } from './Visualizations';
 export { Performance } from './Performance';
 export { Settings } from './Settings';
+export { TopicExplorer } from './TopicExplorer';

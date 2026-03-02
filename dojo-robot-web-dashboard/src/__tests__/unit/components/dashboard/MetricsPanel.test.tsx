@@ -1,16 +1,88 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MetricsPanel } from '@/components/dashboard/MetricsPanel';
-import { useSystemHealth } from '@/features/api/hooks';
 
 // Mock the hooks
 vi.mock('@/features/api/hooks', () => ({
   useSystemHealth: vi.fn(),
+  usePerformanceMetrics: vi.fn(),
+  useSemanticObjects: vi.fn(),
+  useRobotPose: vi.fn(),
 }));
+
+import { useSystemHealth, usePerformanceMetrics, useSemanticObjects, useRobotPose } from '@/features/api/hooks';
+
+const mockSystemHealth = (overrides: Record<string, unknown> = {}) => {
+  vi.mocked(useSystemHealth).mockReturnValue({
+    data: {
+      systemStatus: 'healthy',
+      totalAreas: 3,
+      totalComponents: 10,
+      activeComponents: 10,
+      totalTopics: 25,
+      faultCounts: { error: 0, warning: 0, info: 0 },
+      areas: [],
+      components: [],
+      faults: [],
+      ...overrides,
+    },
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  } as any);
+};
+
+const mockPerfMetrics = (cpuVal?: number, memVal?: number, netVal?: number) => {
+  vi.mocked(usePerformanceMetrics).mockReturnValue({
+    data: cpuVal !== undefined ? {
+      cpuUsage: [{ value: cpuVal, timestamp: '' }],
+      memoryUsage: memVal !== undefined ? [{ value: memVal, timestamp: '' }] : [],
+      networkBandwidth: netVal !== undefined ? [{ value: netVal, timestamp: '' }] : [],
+      messageRates: [],
+      latency: [],
+      tfMetrics: { updateRate: 0, latency: 0, transformCount: 0 },
+      diskIO: { readBytesPerSecond: 0, writeBytesPerSecond: 0, loggingRate: 0 },
+      timestamp: new Date().toISOString(),
+    } : undefined,
+    isLoading: false,
+    error: null,
+  } as any);
+};
+
+const mockRobotPose = (x?: number, y?: number, theta?: number) => {
+  vi.mocked(useRobotPose).mockReturnValue({
+    data: x !== undefined ? { x, y: y ?? 0, theta: theta ?? 0 } : undefined,
+    isLoading: false,
+    error: null,
+  } as any);
+};
+
+const mockSemantic = (objects?: Array<{ id: string; class: string; confidence: number }>) => {
+  vi.mocked(useSemanticObjects).mockReturnValue({
+    data: objects || [],
+    isLoading: false,
+    error: null,
+  } as any);
+};
+
+function renderWithProviders(component: React.ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      {component}
+    </QueryClientProvider>
+  );
+}
 
 describe('MetricsPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPerfMetrics();
+    mockRobotPose();
+    mockSemantic();
   });
 
   it('should display loading state while fetching data', () => {
@@ -21,8 +93,7 @@ describe('MetricsPanel', () => {
       refetch: vi.fn(),
     });
 
-    render(<MetricsPanel />);
-
+    renderWithProviders(<MetricsPanel />);
     expect(screen.getByText('Loading metrics...')).toBeInTheDocument();
   });
 
@@ -34,34 +105,15 @@ describe('MetricsPanel', () => {
       refetch: vi.fn(),
     });
 
-    render(<MetricsPanel />);
-
+    renderWithProviders(<MetricsPanel />);
     expect(screen.getByText('Unable to load metrics data')).toBeInTheDocument();
   });
 
   it('should display performance metrics section', () => {
-    vi.mocked(useSystemHealth).mockReturnValue({
-      data: {
-        systemStatus: 'healthy',
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 10,
-        totalTopics: 25,
-        faultCounts: {
-          error: 0,
-          warning: 0,
-          info: 0,
-        },
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
+    mockSystemHealth();
+    mockPerfMetrics(45.2, 62.8, 1.2);
 
-    render(<MetricsPanel />);
+    renderWithProviders(<MetricsPanel />);
 
     expect(screen.getByText('Performance Metrics')).toBeInTheDocument();
     expect(screen.getByText('CPU Usage')).toBeInTheDocument();
@@ -69,443 +121,96 @@ describe('MetricsPanel', () => {
     expect(screen.getByText('Network Activity')).toBeInTheDocument();
   });
 
-  it('should display CPU usage percentage', () => {
-    vi.mocked(useSystemHealth).mockReturnValue({
-      data: {
-        systemStatus: 'healthy',
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 10,
-        totalTopics: 25,
-        faultCounts: {
-          error: 0,
-          warning: 0,
-          info: 0,
-        },
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
+  it('should display real CPU usage percentage', () => {
+    mockSystemHealth();
+    mockPerfMetrics(45.2, 62.8, 1.2);
 
-    render(<MetricsPanel />);
-
-    // Check for CPU usage value (mocked at 45.2%)
+    renderWithProviders(<MetricsPanel />);
     expect(screen.getByText('45.2%')).toBeInTheDocument();
   });
 
-  it('should display memory usage percentage', () => {
-    vi.mocked(useSystemHealth).mockReturnValue({
-      data: {
-        systemStatus: 'healthy',
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 10,
-        totalTopics: 25,
-        faultCounts: {
-          error: 0,
-          warning: 0,
-          info: 0,
-        },
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
+  it('should display real memory usage percentage', () => {
+    mockSystemHealth();
+    mockPerfMetrics(45.2, 62.8, 1.2);
 
-    render(<MetricsPanel />);
-
-    // Check for memory usage value (mocked at 62.8%)
+    renderWithProviders(<MetricsPanel />);
     expect(screen.getByText('62.8%')).toBeInTheDocument();
   });
 
-  it('should display network activity', () => {
-    vi.mocked(useSystemHealth).mockReturnValue({
-      data: {
-        systemStatus: 'healthy',
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 10,
-        totalTopics: 25,
-        faultCounts: {
-          error: 0,
-          warning: 0,
-          info: 0,
-        },
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
+  it('should display real network activity', () => {
+    mockSystemHealth();
+    mockPerfMetrics(45.2, 62.8, 1.2);
 
-    render(<MetricsPanel />);
-
-    // Check for network activity value (mocked at 1.2 MB/s)
+    renderWithProviders(<MetricsPanel />);
     expect(screen.getByText('1.2 MB/s')).toBeInTheDocument();
   });
 
-  it('should display robot position and orientation section', () => {
-    vi.mocked(useSystemHealth).mockReturnValue({
-      data: {
-        systemStatus: 'healthy',
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 10,
-        totalTopics: 25,
-        faultCounts: {
-          error: 0,
-          warning: 0,
-          info: 0,
-        },
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
+  it('should show dash when performance data is unavailable', () => {
+    mockSystemHealth();
+    mockPerfMetrics(); // no data
 
-    render(<MetricsPanel />);
+    renderWithProviders(<MetricsPanel />);
+
+    // All three metrics should show "—"
+    const dashes = screen.getAllByText('—');
+    expect(dashes.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('should display robot position from real pose data', () => {
+    mockSystemHealth();
+    mockRobotPose(2.5, 1.8, 1.57);
+
+    renderWithProviders(<MetricsPanel />);
 
     expect(screen.getByText('Robot Position & Orientation')).toBeInTheDocument();
-    expect(screen.getByText('Position')).toBeInTheDocument();
-    expect(screen.getByText('Orientation')).toBeInTheDocument();
-  });
-
-  it('should display robot position coordinates', () => {
-    vi.mocked(useSystemHealth).mockReturnValue({
-      data: {
-        systemStatus: 'healthy',
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 10,
-        totalTopics: 25,
-        faultCounts: {
-          error: 0,
-          warning: 0,
-          info: 0,
-        },
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    render(<MetricsPanel />);
-
-    // Check for position values (mocked at x: 2.5, y: 1.8, z: 0.0)
     expect(screen.getByText('2.50 m')).toBeInTheDocument();
     expect(screen.getByText('1.80 m')).toBeInTheDocument();
-    expect(screen.getByText('0.00 m')).toBeInTheDocument();
-  });
-
-  it('should display robot orientation values', () => {
-    vi.mocked(useSystemHealth).mockReturnValue({
-      data: {
-        systemStatus: 'healthy',
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 10,
-        totalTopics: 25,
-        faultCounts: {
-          error: 0,
-          warning: 0,
-          info: 0,
-        },
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    render(<MetricsPanel />);
-
-    // Check for orientation values (mocked at roll: 0.0, pitch: 0.0, yaw: 1.57)
     expect(screen.getByText('1.57 rad')).toBeInTheDocument();
   });
 
+  it('should show unavailable message when pose data missing', () => {
+    mockSystemHealth();
+    mockRobotPose(); // no data
+
+    renderWithProviders(<MetricsPanel />);
+    expect(screen.getByText(/Robot pose unavailable/i)).toBeInTheDocument();
+  });
+
   it('should display exploration progress section', () => {
-    vi.mocked(useSystemHealth).mockReturnValue({
-      data: {
-        systemStatus: 'healthy',
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 10,
-        totalTopics: 25,
-        faultCounts: {
-          error: 0,
-          warning: 0,
-          info: 0,
-        },
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
+    mockSystemHealth();
 
-    render(<MetricsPanel />);
-
+    renderWithProviders(<MetricsPanel />);
     expect(screen.getByText('Exploration Progress')).toBeInTheDocument();
-    expect(screen.getByText('Overall Progress')).toBeInTheDocument();
-    expect(screen.getByText('Area Covered')).toBeInTheDocument();
-    expect(screen.getByText('Active Frontiers')).toBeInTheDocument();
-  });
-
-  it('should display exploration progress percentage', () => {
-    vi.mocked(useSystemHealth).mockReturnValue({
-      data: {
-        systemStatus: 'healthy',
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 10,
-        totalTopics: 25,
-        faultCounts: {
-          error: 0,
-          warning: 0,
-          info: 0,
-        },
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    render(<MetricsPanel />);
-
-    // Check for exploration progress (mocked at 68%)
-    expect(screen.getByText('68%')).toBeInTheDocument();
-  });
-
-  it('should display area covered in square meters', () => {
-    vi.mocked(useSystemHealth).mockReturnValue({
-      data: {
-        systemStatus: 'healthy',
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 10,
-        totalTopics: 25,
-        faultCounts: {
-          error: 0,
-          warning: 0,
-          info: 0,
-        },
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    render(<MetricsPanel />);
-
-    // Check for area covered (mocked at 45.3 m²)
-    expect(screen.getByText('45.3 m²')).toBeInTheDocument();
-  });
-
-  it('should display active frontiers count', () => {
-    vi.mocked(useSystemHealth).mockReturnValue({
-      data: {
-        systemStatus: 'healthy',
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 10,
-        totalTopics: 25,
-        faultCounts: {
-          error: 0,
-          warning: 0,
-          info: 0,
-        },
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    render(<MetricsPanel />);
-
-    // Check for frontiers count (mocked at 12)
-    expect(screen.getByText('12')).toBeInTheDocument();
   });
 
   it('should display semantic object detection section', () => {
-    vi.mocked(useSystemHealth).mockReturnValue({
-      data: {
-        systemStatus: 'healthy',
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 10,
-        totalTopics: 25,
-        faultCounts: {
-          error: 0,
-          warning: 0,
-          info: 0,
-        },
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
+    mockSystemHealth();
 
-    render(<MetricsPanel />);
-
+    renderWithProviders(<MetricsPanel />);
     expect(screen.getByText('Semantic Object Detection')).toBeInTheDocument();
     expect(screen.getByText('Total Objects Detected')).toBeInTheDocument();
   });
 
-  it('should display total detected objects count', () => {
-    vi.mocked(useSystemHealth).mockReturnValue({
-      data: {
-        systemStatus: 'healthy',
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 10,
-        totalTopics: 25,
-        faultCounts: {
-          error: 0,
-          warning: 0,
-          info: 0,
-        },
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
+  it('should display real semantic object counts', () => {
+    mockSystemHealth();
+    mockSemantic([
+      { id: '1', class: 'chair', confidence: 0.9 },
+      { id: '2', class: 'chair', confidence: 0.85 },
+      { id: '3', class: 'person', confidence: 0.92 },
+    ]);
 
-    render(<MetricsPanel />);
+    renderWithProviders(<MetricsPanel />);
 
-    // Check for total objects (mocked at 23)
-    expect(screen.getByText('23')).toBeInTheDocument();
-  });
-
-  it('should display object counts by type', () => {
-    vi.mocked(useSystemHealth).mockReturnValue({
-      data: {
-        systemStatus: 'healthy',
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 10,
-        totalTopics: 25,
-        faultCounts: {
-          error: 0,
-          warning: 0,
-          info: 0,
-        },
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    render(<MetricsPanel />);
-
-    // Check for object types
-    expect(screen.getByText('person')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument(); // total
     expect(screen.getByText('chair')).toBeInTheDocument();
-    expect(screen.getByText('table')).toBeInTheDocument();
-    expect(screen.getByText('door')).toBeInTheDocument();
-    expect(screen.getByText('other')).toBeInTheDocument();
-
-    // Check for counts (mocked values) - using getAllByText since some numbers appear multiple times
-    const threes = screen.getAllByText('3');
-    expect(threes.length).toBeGreaterThanOrEqual(1); // person and other both have count 3
-    expect(screen.getByText('8')).toBeInTheDocument(); // chair count
-    expect(screen.getByText('4')).toBeInTheDocument(); // table count
-    expect(screen.getByText('5')).toBeInTheDocument(); // door count
-  });
-
-  it('should have proper accessibility attributes for progress bars', () => {
-    vi.mocked(useSystemHealth).mockReturnValue({
-      data: {
-        systemStatus: 'healthy',
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 10,
-        totalTopics: 25,
-        faultCounts: {
-          error: 0,
-          warning: 0,
-          info: 0,
-        },
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    render(<MetricsPanel />);
-
-    // Check for progress bar accessibility attributes
-    const explorationProgress = screen.getByLabelText('Exploration progress');
-    expect(explorationProgress).toHaveAttribute('role', 'progressbar');
-    expect(explorationProgress).toHaveAttribute('aria-valuenow', '68');
-    expect(explorationProgress).toHaveAttribute('aria-valuemin', '0');
-    expect(explorationProgress).toHaveAttribute('aria-valuemax', '100');
+    expect(screen.getByText('person')).toBeInTheDocument();
   });
 
   it('should display all four main sections', () => {
-    vi.mocked(useSystemHealth).mockReturnValue({
-      data: {
-        systemStatus: 'healthy',
-        totalAreas: 3,
-        totalComponents: 10,
-        activeComponents: 10,
-        totalTopics: 25,
-        faultCounts: {
-          error: 0,
-          warning: 0,
-          info: 0,
-        },
-        areas: [],
-        components: [],
-        faults: [],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
+    mockSystemHealth();
 
-    render(<MetricsPanel />);
+    renderWithProviders(<MetricsPanel />);
 
-    // Verify all four main sections are present
     expect(screen.getByText('Performance Metrics')).toBeInTheDocument();
     expect(screen.getByText('Robot Position & Orientation')).toBeInTheDocument();
     expect(screen.getByText('Exploration Progress')).toBeInTheDocument();
